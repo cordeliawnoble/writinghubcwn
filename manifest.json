@@ -2,7 +2,7 @@
   "name": "L'Atelier — Espace d'écriture",
   "short_name": "L'Atelier",
   "description": "Ton espace d'écriture, à l'abri des regards.",
-  "start_url": "./atelier.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
