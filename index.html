@@ -525,7 +525,7 @@ document.getElementById('quick-save-btn').addEventListener('click', async () => 
 function renderTodoLists(){
   const full = document.getElementById('todo-list-full');
   if(todos.length === 0){
-    full.innerHTML = '<p class="empty-state" style="padding:6px 0;">Aucune tâche pour l\\'instant.</p>';
+    full.innerHTML = '<p class="empty-state" style="padding:6px 0;">Aucune tâche pour l’instant.</p>';
   } else {
     full.innerHTML = todos.map(t => `
       <div class="todo-row ${t.done ? 'done':''}">
