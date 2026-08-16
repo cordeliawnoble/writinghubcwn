@@ -140,7 +140,10 @@
     margin-bottom:24px; text-align:center;
     background: radial-gradient(circle at 85% 20%, rgba(155,127,212,0.14), transparent 45%), linear-gradient(155deg, var(--panel) 0%, #0b0615 100%);
     border:1px solid var(--line);
+    aspect-ratio: 2.4 / 1;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
   }
+  @media (max-width: 700px){ .dash-banner{ aspect-ratio: 1.3 / 1; } }
   .dash-banner-stars{
     position:absolute; inset:0; opacity:.6; pointer-events:none;
     background-image:
@@ -843,6 +846,12 @@ async function setCurrentChapter(id){
   renderDashboard();
 }
 
+function onDashProjectChange(value){
+  dashProjectFilter = value;
+  activeChapterId = null; // on repart sur "choisir un chapitre" pour ce nouveau filtre
+  renderDashboard();
+}
+
 function wordCount(text){
   if(!text) return 0;
   return text.trim().split(/\s+/).filter(Boolean).length;
@@ -850,6 +859,8 @@ function wordCount(text){
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 
 /* ---------- DASHBOARD ---------- */
+let dashProjectFilter = 'all'; // 'all' | 'none' | project id
+
 function renderDashboard(){
   const todayWords = sessions.filter(s => s.date === todayStr()).reduce((a,s) => a + Math.max(0, s.words_written), 0);
   const pct = Math.min(100, Math.round((todayWords / dailyGoal) * 100));
@@ -859,23 +870,42 @@ function renderDashboard(){
   document.getElementById('moon-fill').style.height = pct + '%';
 
   const container = document.getElementById('chapter-preview-content');
-  const chapterSelect = `
-    <select onchange="setCurrentChapter(this.value)" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid var(--line); font-size:13px; margin-bottom:12px;">
-      <option value="">— Choisir un chapitre —</option>
-      ${chapters.slice().sort((a,b)=>extractChapterNumber(a.title)-extractChapterNumber(b.title))
-        .map(c => `<option value="${c.id}" ${c.id===activeChapterId?'selected':''}>${escapeHtml(c.title)}</option>`).join('')}
-    </select>`;
   const current = chapters.find(c => c.id === activeChapterId);
+
+  // initialise le filtre projet sur celui du chapitre actif, au premier rendu
+  if(current && dashProjectFilter === 'all' && current.project_id){
+    dashProjectFilter = current.project_id;
+  }
+
+  const projectSelect = `
+    <select onchange="onDashProjectChange(this.value)" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid var(--line); font-size:13px; margin-bottom:8px; background:var(--panel); color:var(--ink);">
+      <option value="all" ${dashProjectFilter==='all'?'selected':''}>Tous les projets</option>
+      <option value="none" ${dashProjectFilter==='none'?'selected':''}>Sans projet</option>
+      ${projects.map(p => `<option value="${p.id}" ${dashProjectFilter===p.id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}
+    </select>`;
+
+  const filteredChapters = chapters.slice()
+    .filter(c => dashProjectFilter === 'all' ? true : dashProjectFilter === 'none' ? !c.project_id : c.project_id === dashProjectFilter)
+    .sort((a,b) => extractChapterNumber(a.title) - extractChapterNumber(b.title));
+
+  const chapterSelect = `
+    <select onchange="setCurrentChapter(this.value)" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid var(--line); font-size:13px; margin-bottom:12px; background:var(--panel); color:var(--ink);">
+      <option value="">— Choisir un chapitre —</option>
+      ${filteredChapters.map(c => `<option value="${c.id}" ${c.id===activeChapterId?'selected':''}>${escapeHtml(c.title)}</option>`).join('')}
+    </select>`;
+
   if(!current){
-    container.innerHTML = chapterSelect + (chapters.length === 0
+    container.innerHTML = projectSelect + chapterSelect + (chapters.length === 0
       ? '<p class="empty-state" style="padding:10px 0;">Aucun chapitre pour le moment.</p>'
       : '<p class="empty-state" style="padding:10px 0;">Choisis le chapitre à mettre en avant.</p>');
   } else {
     const wc = current.word_count || 0;
     const goal = current.word_goal || 1;
     const p = Math.min(100, Math.round((wc / goal) * 100));
-    container.innerHTML = chapterSelect +
-      (current.cover_image_url ? `<img class="cp-cover" src="${escapeHtml(current.cover_image_url)}" alt="">` : '') + `
+    const currentProject = projects.find(pr => pr.id === current.project_id);
+    const coverUrl = (currentProject && currentProject.cover_image_url) || current.cover_image_url;
+    container.innerHTML = projectSelect + chapterSelect +
+      (coverUrl ? `<img class="cp-cover" src="${escapeHtml(coverUrl)}" alt="">` : '') + `
       <p class="cp-title">${escapeHtml(current.title || 'Sans titre')}</p>
       <p class="cp-meta">${wc.toLocaleString('fr-FR')} / ${current.word_goal.toLocaleString('fr-FR')} mots</p>
       <div class="progress-bar"><div class="progress-bar-fill" style="width:${p}%"></div></div>
@@ -1040,42 +1070,70 @@ async function addTodoFromInput(){
 }
 
 /* ---------- CHAPTERS ---------- */
+let expandedChapterGroups = {}; // 'none' | project id -> bool
+
+function renderSingleChapterCard(c){
+  const wc = c.word_count || 0;
+  const p = Math.min(100, Math.round((wc / (c.word_goal||1)) * 100));
+  return `
+    <div class="chapter-card" id="chapter-card-${c.id}">
+      <p class="ci-title">${escapeHtml(c.title || 'Sans titre')}</p>
+      <div class="ci-numbers">
+        <input type="number" min="0" step="50" value="${wc}" title="Mots écrits"
+          onchange="updateChapterWordCount('${c.id}', this.value)">
+        <span>/</span>
+        <input type="number" min="0" step="50" value="${c.word_goal || 0}" title="Objectif de mots"
+          onchange="updateChapterGoal('${c.id}', this.value)">
+        <span>mots</span>
+      </div>
+      <div class="ci-bar">
+        <div class="progress-bar"><div class="progress-bar-fill" id="chapter-bar-${c.id}" style="width:${p}%"></div></div>
+      </div>
+      <select class="ci-numbers" onchange="updateChapterStatus('${c.id}', this.value)">
+        <option value="draft" ${c.status==='draft'?'selected':''}>Brouillon</option>
+        <option value="in_progress" ${c.status==='in_progress'?'selected':''}>En cours</option>
+        <option value="done" ${c.status==='done'?'selected':''}>Terminé</option>
+      </select>
+      <button class="del" onclick="deleteChapter('${c.id}')" style="background:none;border:none;color:var(--ink-soft);font-size:16px;">✕</button>
+    </div>
+  `;
+}
+
+function toggleChapterGroup(key){
+  expandedChapterGroups[key] = !(expandedChapterGroups[key] !== false);
+  renderChaptersList();
+}
+
 function renderChaptersList(){
   const list = document.getElementById('chapters-list');
   if(chapters.length === 0){
     list.innerHTML = '<p class="empty-state">Aucun chapitre. Crée le premier !</p>';
     return;
   }
-  const sorted = chapters.slice().sort((a,b) => {
-    if(a.project_id && b.project_id && a.project_id === b.project_id){
-      return extractChapterNumber(a.title) - extractChapterNumber(b.title);
-    }
-    return (a.order_index||0) - (b.order_index||0);
+
+  // groupes : un par projet (dans l'ordre de création), puis "Sans projet"
+  const groups = [];
+  projects.forEach(p => {
+    const groupChapters = chapters.filter(c => c.project_id === p.id)
+      .slice().sort((a,b) => extractChapterNumber(a.title) - extractChapterNumber(b.title));
+    if(groupChapters.length > 0) groups.push({ key: p.id, label: p.name, chapters: groupChapters });
   });
-  list.innerHTML = sorted.map(c => {
-    const wc = c.word_count || 0;
-    const p = Math.min(100, Math.round((wc / (c.word_goal||1)) * 100));
+  const noProjectChapters = chapters.filter(c => !c.project_id)
+    .slice().sort((a,b) => (a.order_index||0) - (b.order_index||0));
+  if(noProjectChapters.length > 0) groups.push({ key: 'none', label: 'Sans projet', chapters: noProjectChapters });
+
+  list.innerHTML = groups.map(g => {
+    const isOpen = expandedChapterGroups[g.key] !== false; // ouvert par défaut
     return `
-      <div class="chapter-card" id="chapter-card-${c.id}">
-        <p class="ci-title">${escapeHtml(c.title || 'Sans titre')}</p>
-        <div class="ci-numbers">
-          <input type="number" min="0" step="50" value="${wc}" title="Mots écrits"
-            onchange="updateChapterWordCount('${c.id}', this.value)">
-          <span>/</span>
-          <input type="number" min="0" step="50" value="${c.word_goal || 0}" title="Objectif de mots"
-            onchange="updateChapterGoal('${c.id}', this.value)">
-          <span>mots</span>
+      <div style="margin-bottom:18px;">
+        <button onclick="toggleChapterGroup('${g.key}')" style="background:none;border:none;display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0;width:100%;text-align:left;">
+          <span class="pj-toggle" style="padding:0;">${isOpen ? '▾' : '▸'}</span>
+          <h3 style="margin:0;">${escapeHtml(g.label)}</h3>
+          <span style="font-size:12px;color:var(--ink-soft);margin-left:4px;">(${g.chapters.length})</span>
+        </button>
+        <div style="${isOpen ? '' : 'display:none;'}">
+          ${g.chapters.map(c => renderSingleChapterCard(c)).join('')}
         </div>
-        <div class="ci-bar">
-          <div class="progress-bar"><div class="progress-bar-fill" id="chapter-bar-${c.id}" style="width:${p}%"></div></div>
-        </div>
-        <select class="ci-numbers" onchange="updateChapterStatus('${c.id}', this.value)">
-          <option value="draft" ${c.status==='draft'?'selected':''}>Brouillon</option>
-          <option value="in_progress" ${c.status==='in_progress'?'selected':''}>En cours</option>
-          <option value="done" ${c.status==='done'?'selected':''}>Terminé</option>
-        </select>
-        <button onclick="setChapterCoverImage('${c.id}')" title="Définir une image de couverture" style="background:none;border:none;color:var(--ink-soft);font-size:16px;">🖼️</button>
-        <button class="del" onclick="deleteChapter('${c.id}')" style="background:none;border:none;color:var(--ink-soft);font-size:16px;">✕</button>
       </div>
     `;
   }).join('');
@@ -1126,16 +1184,6 @@ async function updateChapterStatus(id, status){
   const c = chapters.find(c => c.id === id);
   if(c) c.status = status;
   renderProjectsList();
-}
-
-async function setChapterCoverImage(id){
-  const c = chapters.find(c => c.id === id);
-  if(!c) return;
-  const url = prompt("URL de l'image de couverture :", c.cover_image_url || '');
-  if(url === null) return;
-  await sb.from('chapters').update({ cover_image_url: url }).eq('id', id);
-  c.cover_image_url = url;
-  renderDashboard();
 }
 
 /* Suivi quotidien : delta entre l'ancien et le nouveau nombre de mots saisi */
@@ -1306,6 +1354,17 @@ function renderProjectsList(){
       </div>
       <div class="pj-links">${p.notion_plan_db_id ? 'Base plan liée' : 'Base plan non configurée'} · ${p.notion_project_value ? 'Filtre to-do : ' + escapeHtml(p.notion_project_value) : 'Filtre to-do non configuré'} · ${projectChapters.length} chapitre(s) importé(s)</div>
 
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        ${p.cover_image_url
+          ? `<img src="${escapeHtml(p.cover_image_url)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`
+          : `<div style="width:56px;height:56px;border-radius:8px;border:1px solid var(--line);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:18px;">🖼️</div>`}
+        <label class="banner-rule-upload-btn">
+          ${p.cover_image_url ? 'Changer la couverture' : 'Ajouter une couverture'}
+          <input type="file" accept="image/*" style="display:none;" onchange="uploadProjectCoverImage('${p.id}', this.files[0])">
+        </label>
+        ${p.cover_image_url ? `<button class="del-rule" title="Retirer" onclick="removeProjectCoverImage('${p.id}')">✕</button>` : ''}
+      </div>
+
       ${renderKpiWidget(p)}
 
       <div style="${isOpen ? '' : 'display:none;'}">
@@ -1391,6 +1450,28 @@ document.getElementById('new-project-btn').addEventListener('click', async () =>
   const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name }).select().single();
   if(!error){ projects.push(data); expandedProjects[data.id] = true; renderProjectsList(); }
 });
+
+async function uploadProjectCoverImage(projectId, file){
+  if(!file) return;
+  const ext = file.name.split('.').pop();
+  const path = `${currentUser.id}/project-cover-${projectId}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from('atelier-banners').upload(path, file, { upsert: true });
+  if(error){ alert("Erreur d'upload : " + error.message); return; }
+  const { data } = sb.storage.from('atelier-banners').getPublicUrl(path);
+  await sb.from('projects').update({ cover_image_url: data.publicUrl }).eq('id', projectId);
+  const p = projects.find(p => p.id === projectId);
+  if(p) p.cover_image_url = data.publicUrl;
+  renderProjectsList();
+  renderDashboard();
+}
+
+async function removeProjectCoverImage(projectId){
+  await sb.from('projects').update({ cover_image_url: null }).eq('id', projectId);
+  const p = projects.find(p => p.id === projectId);
+  if(p) p.cover_image_url = null;
+  renderProjectsList();
+  renderDashboard();
+}
 
 async function saveProjectGoals(id){
   const totalGoal = parseInt(document.getElementById('pj-totalgoal-' + id).value) || 0;
