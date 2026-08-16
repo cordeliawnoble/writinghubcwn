@@ -162,36 +162,21 @@
   .add-row input{ flex:1; padding:9px 12px; border-radius:8px; border:1px solid var(--line); font-family:'Lora',serif;}
   .add-row button{ padding:9px 16px; border-radius:8px; border:none; background:var(--navy); color:var(--cream); font-size:14px;}
 
-  /* chapters list / editor */
+  /* chapters list */
   .chapter-card{
     background:#fff; border-radius:12px; padding:16px 18px; margin-bottom:10px;
-    border:1px solid var(--line); display:flex; align-items:center; gap:16px; cursor:pointer;
+    border:1px solid var(--line); display:flex; align-items:center; gap:16px; flex-wrap:wrap;
   }
-  .chapter-card:hover{ box-shadow:var(--shadow); }
-  .chapter-card .ci-title{ font-size:17px; color:var(--navy); margin:0;}
+  .chapter-card .ci-title{ font-size:17px; color:var(--navy); margin:0; flex:1; min-width:160px;}
   .chapter-card .ci-meta{ font-size:13px; color:var(--ink-soft);}
   .chapter-card .ci-bar{ width:120px; flex-shrink:0; }
+  .ci-numbers{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft);}
+  .ci-numbers input[type=number]{ width:64px; padding:5px 7px; border-radius:6px; border:1px solid var(--line); font-family:'Lora',serif; font-size:13px; text-align:right;}
+  .ci-numbers select{ padding:5px 7px; border-radius:6px; border:1px solid var(--line); font-size:12px;}
   .status-pill{ font-size:11px; padding:3px 9px; border-radius:20px; background:var(--cream-deep); color:var(--navy); text-transform:uppercase; letter-spacing:.05em; flex-shrink:0;}
   .btn-ghost{ padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--navy); font-size:14px;}
   .btn-ghost:hover{ background:var(--cream-deep); }
   .btn-dark{ padding:9px 18px; border-radius:8px; border:none; background:var(--navy); color:var(--cream); font-size:14px;}
-
-  /* editor view */
-  .editor-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:16px; flex-wrap:wrap;}
-  .editor-header input.title-input{
-    font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:600; color:var(--navy);
-    border:none; background:none; padding:2px 0; width:100%;
-  }
-  .editor-header input.title-input:focus{ outline:none; border-bottom:1px solid var(--navy-mist); }
-  .editor-meta-row{ display:flex; gap:18px; align-items:center; font-size:13px; color:var(--ink-soft); margin-bottom:14px; flex-wrap:wrap;}
-  .editor-meta-row input[type=number]{ width:70px; padding:4px 6px; border-radius:6px; border:1px solid var(--line);}
-  textarea.editor-body{
-    width:100%; min-height:52vh; border:1px solid var(--line); border-radius:var(--radius);
-    padding:26px 30px; font-family:'Lora',serif; font-size:17px; line-height:1.75; color:var(--ink);
-    resize:vertical; background:#fff;
-  }
-  textarea.editor-body:focus{ outline:none; box-shadow:0 0 0 2px var(--navy-mist); }
-  .save-indicator{ font-size:12px; color:var(--ink-soft); font-style:italic; }
 
   .empty-state{ text-align:center; padding:50px 20px; color:var(--ink-soft); font-style:italic;}
 
@@ -212,6 +197,30 @@
   .pj-toggle{ background:none; border:none; font-size:18px; color:var(--navy); cursor:pointer; padding:0 8px 0 0; line-height:1;}
   .pj-item{ cursor:pointer; }
   .pj-item input[type=checkbox]{ margin-right:8px; accent-color:var(--navy); }
+
+  /* ===== KPI WIDGET (reprise du design original de Clothilde) ===== */
+  .kpi-widget{ display:flex; flex-direction:column; align-items:center; gap:10px; width:100%; font-family:'Georgia',serif; margin:18px 0; }
+  .kpi-widget .active-novel-banner{ font-size:13px; font-style:italic; color:#8c7b70; margin-bottom:2px; letter-spacing:.5px; font-weight:bold; font-family:'Cormorant Garamond',serif; }
+  .kpi-widget .dashboard-container{ display:flex; justify-content:center; gap:8px; width:100%; max-width:600px; flex-wrap:wrap; }
+  .kpi-widget .kpi-card{
+    background:#fff; border:1px solid rgba(140,123,112,0.25); outline:1px solid rgba(140,123,112,0.1); outline-offset:-3px;
+    border-radius:12px; width:170px; height:250px; flex-shrink:0; box-sizing:border-box; padding:15px 10px;
+    display:flex; flex-direction:column; align-items:center; justify-content:space-between;
+    box-shadow:0 4px 15px rgba(0,0,0,0.02); text-align:center; color:#2c1a04;
+  }
+  .kpi-widget .card-header{ display:flex; flex-direction:column; align-items:center; width:100%; }
+  .kpi-widget .card-title{ font-size:9px; text-transform:uppercase; letter-spacing:1px; font-weight:bold; color:#2c1a04; display:flex; align-items:center; justify-content:center; gap:4px; margin:0; }
+  .kpi-widget .card-main-value{ font-size:24px; font-weight:bold; margin:4px 0; }
+  .kpi-widget .ornament{ font-size:8px; color:#d4af37; opacity:.5; margin:1px 0; user-select:none; }
+  .kpi-widget .card-middle{ display:flex; flex-direction:column; align-items:center; justify-content:center; flex-grow:1; width:100%; }
+  .kpi-widget .card-footer{ width:100%; display:flex; flex-direction:column; align-items:center; }
+  .kpi-widget .text-medium{ font-size:12.5px; font-weight:bold; margin:1px 0; color:#2c1a04; }
+  .kpi-widget .text-sub{ font-size:10.5px; color:#8c7b70; font-style:italic; margin:1px 0; }
+  .kpi-widget .calendar-icon{ font-size:22px; color:#8c7b70; opacity:.45; margin:2px 0; }
+  .kpi-config-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .kpi-config-row label{ font-size:12px; color:var(--ink-soft); display:flex; flex-direction:column; gap:3px; }
+  .kpi-config-row input[type=number]{ width:90px; padding:6px 8px; border-radius:6px; border:1px solid var(--line); }
+  .kpi-config-row input[type=color]{ width:44px; height:30px; border:1px solid var(--line); border-radius:6px; padding:2px; }
 
   @media (max-width: 860px){
     #app.active{ flex-direction:column; }
@@ -254,7 +263,6 @@
   <div class="sidebar">
     <div class="brand"><div class="moon-mini"></div><span>L'Atelier</span></div>
     <button class="nav-item active" data-view="dashboard"><span class="dot"></span>Tableau de bord</button>
-    <button class="nav-item" data-view="write"><span class="dot"></span>Écriture</button>
     <button class="nav-item" data-view="chapters"><span class="dot"></span>Chapitres</button>
     <button class="nav-item" data-view="projects"><span class="dot"></span>Projets</button>
     <button class="nav-item" data-view="stats"><span class="dot"></span>Statistiques</button>
@@ -302,29 +310,7 @@
           </div>
         </div>
       </div>
-    </section>
-
-    <!-- WRITE -->
-    <section id="view-write" class="view" style="display:none;">
-      <div id="write-empty" class="empty-state">
-        Choisis un chapitre depuis l'onglet <strong>Chapitres</strong> pour commencer à écrire.
-      </div>
-      <div id="write-editor" style="display:none;">
-        <div class="editor-header">
-          <input class="title-input" id="editor-title" placeholder="Titre du chapitre">
-          <span class="save-indicator" id="save-indicator">Enregistré</span>
-        </div>
-        <div class="editor-meta-row">
-          <span id="editor-wordcount">0 mots</span>
-          <span>Objectif : <input type="number" id="editor-goal" min="0" step="50"> mots</span>
-          <select id="editor-status" style="padding:5px 8px;border-radius:6px;border:1px solid var(--line);">
-            <option value="draft">Brouillon</option>
-            <option value="in_progress">En cours</option>
-            <option value="done">Terminé</option>
-          </select>
-        </div>
-        <textarea class="editor-body" id="editor-body" placeholder="Il était une fois..."></textarea>
-      </div>
+      <div id="dash-kpi-widgets"></div>
     </section>
 
     <!-- CHAPTERS -->
@@ -521,7 +507,7 @@ function renderDashboard(){
   if(!current){
     container.innerHTML = '<p class="empty-state" style="padding:10px 0;">Aucun chapitre pour le moment.</p>';
   } else {
-    const wc = wordCount(current.content);
+    const wc = current.word_count || 0;
     const goal = current.word_goal || 1;
     const p = Math.min(100, Math.round((wc / goal) * 100));
     container.innerHTML = `
@@ -529,10 +515,13 @@ function renderDashboard(){
       <p class="cp-meta">${wc.toLocaleString('fr-FR')} / ${current.word_goal.toLocaleString('fr-FR')} mots</p>
       <div class="progress-bar"><div class="progress-bar-fill" style="width:${p}%"></div></div>
       <p class="cp-meta" style="margin:8px 0 12px;">${p}%</p>
-      <button class="btn-ghost" onclick="openChapterInEditor('${current.id}')">Continuer l'écriture</button>
+      <button class="btn-ghost" onclick="switchView('chapters')">Voir mes chapitres</button>
     `;
   }
   renderDashTodo();
+
+  const kpiContainer = document.getElementById('dash-kpi-widgets');
+  if(kpiContainer) kpiContainer.innerHTML = projects.map(p => renderKpiWidget(p)).join('');
 }
 
 function renderDashTodo(){
@@ -601,20 +590,35 @@ function renderChaptersList(){
     list.innerHTML = '<p class="empty-state">Aucun chapitre. Crée le premier !</p>';
     return;
   }
-  list.innerHTML = chapters.map(c => {
-    const wc = wordCount(c.content);
+  const sorted = chapters.slice().sort((a,b) => {
+    if(a.project_id && b.project_id && a.project_id === b.project_id){
+      return extractChapterNumber(a.title) - extractChapterNumber(b.title);
+    }
+    return (a.order_index||0) - (b.order_index||0);
+  });
+  list.innerHTML = sorted.map(c => {
+    const wc = c.word_count || 0;
     const p = Math.min(100, Math.round((wc / (c.word_goal||1)) * 100));
-    const statusLabel = {draft:'Brouillon', in_progress:'En cours', done:'Terminé'}[c.status] || c.status;
     return `
-      <div class="chapter-card" onclick="openChapterInEditor('${c.id}')">
-        <div style="flex:1;">
-          <p class="ci-title">${escapeHtml(c.title || 'Sans titre')}</p>
-          <p class="ci-meta">${wc.toLocaleString('fr-FR')} / ${c.word_goal.toLocaleString('fr-FR')} mots</p>
+      <div class="chapter-card" id="chapter-card-${c.id}">
+        <p class="ci-title">${escapeHtml(c.title || 'Sans titre')}</p>
+        <div class="ci-numbers">
+          <input type="number" min="0" step="50" value="${wc}" title="Mots écrits"
+            onchange="updateChapterWordCount('${c.id}', this.value)">
+          <span>/</span>
+          <input type="number" min="0" step="50" value="${c.word_goal || 0}" title="Objectif de mots"
+            onchange="updateChapterGoal('${c.id}', this.value)">
+          <span>mots</span>
         </div>
         <div class="ci-bar">
-          <div class="progress-bar"><div class="progress-bar-fill" style="width:${p}%"></div></div>
+          <div class="progress-bar"><div class="progress-bar-fill" id="chapter-bar-${c.id}" style="width:${p}%"></div></div>
         </div>
-        <span class="status-pill">${statusLabel}</span>
+        <select class="ci-numbers" onchange="updateChapterStatus('${c.id}', this.value)">
+          <option value="draft" ${c.status==='draft'?'selected':''}>Brouillon</option>
+          <option value="in_progress" ${c.status==='in_progress'?'selected':''}>En cours</option>
+          <option value="done" ${c.status==='done'?'selected':''}>Terminé</option>
+        </select>
+        <button class="del" onclick="deleteChapter('${c.id}')" style="background:none;border:none;color:var(--ink-soft);font-size:16px;">✕</button>
       </div>
     `;
   }).join('');
@@ -624,74 +628,62 @@ document.getElementById('new-chapter-btn').addEventListener('click', async () =>
   const title = prompt("Titre du nouveau chapitre :", "Chapitre " + (chapters.length + 1));
   if(!title) return;
   const { data, error } = await sb.from('chapters').insert({
-    user_id: currentUser.id, title, content:'', word_goal:2000, status:'draft', order_index: chapters.length
+    user_id: currentUser.id, title, word_count:0, word_goal:2000, status:'draft', order_index: chapters.length
   }).select().single();
-  if(!error){ chapters.push(data); renderChaptersList(); openChapterInEditor(data.id); }
+  if(!error){ chapters.push(data); renderChaptersList(); renderDashboard(); }
 });
 
-/* ---------- EDITOR ---------- */
-function openChapterInEditor(id){
-  activeChapterId = id;
-  const c = chapters.find(c => c.id === id);
-  if(!c) return;
-  document.getElementById('write-empty').style.display = 'none';
-  document.getElementById('write-editor').style.display = 'block';
-  document.getElementById('editor-title').value = c.title || '';
-  document.getElementById('editor-body').value = c.content || '';
-  document.getElementById('editor-goal').value = c.word_goal || 2000;
-  document.getElementById('editor-status').value = c.status || 'draft';
-  document.getElementById('editor-wordcount').textContent = wordCount(c.content) + ' mots';
-  document.getElementById('save-indicator').textContent = 'Enregistré';
-  switchView('write');
+async function deleteChapter(id){
+  if(!confirm("Supprimer ce chapitre ?")) return;
+  await sb.from('chapters').delete().eq('id', id);
+  chapters = chapters.filter(c => c.id !== id);
+  renderChaptersList(); renderProjectsList(); renderDashboard();
 }
 
-['editor-title','editor-body','editor-goal','editor-status'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => {
-    document.getElementById('editor-wordcount').textContent = wordCount(document.getElementById('editor-body').value) + ' mots';
-    document.getElementById('save-indicator').textContent = 'Enregistrement...';
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveActiveChapter, 900);
-  });
-});
-
-async function saveActiveChapter(){
-  if(!activeChapterId) return;
-  const c = chapters.find(c => c.id === activeChapterId);
+async function updateChapterWordCount(id, value){
+  const newWc = Math.max(0, parseInt(value) || 0);
+  const c = chapters.find(c => c.id === id);
   if(!c) return;
-  const newContent = document.getElementById('editor-body').value;
-  const newTitle = document.getElementById('editor-title').value;
-  const newGoal = parseInt(document.getElementById('editor-goal').value) || 0;
-  const newStatus = document.getElementById('editor-status').value;
-  const newWc = wordCount(newContent);
+  const oldWc = c.word_count || 0;
+  await sb.from('chapters').update({ word_count: newWc, updated_at: new Date().toISOString() }).eq('id', id);
+  await logWritingProgress(id, oldWc, newWc);
+  c.word_count = newWc;
+  const p = Math.min(100, Math.round((newWc / (c.word_goal||1)) * 100));
+  const bar = document.getElementById('chapter-bar-' + id);
+  if(bar) bar.style.width = p + '%';
+  renderDashboard();
+  renderProjectsList();
+}
 
-  await sb.from('chapters').update({
-    title: newTitle, content: newContent, word_goal: newGoal, status: newStatus, updated_at: new Date().toISOString()
-  }).eq('id', c.id);
-
-  await logWritingProgress(c.id, c.content, newContent);
-
-  c.title = newTitle; c.content = newContent; c.word_goal = newGoal; c.status = newStatus;
-  document.getElementById('save-indicator').textContent = 'Enregistré';
+async function updateChapterGoal(id, value){
+  const newGoal = Math.max(0, parseInt(value) || 0);
+  await sb.from('chapters').update({ word_goal: newGoal }).eq('id', id);
+  const c = chapters.find(c => c.id === id);
+  if(c) c.word_goal = newGoal;
   renderChaptersList();
   renderDashboard();
 }
 
-/* Track words written today per chapter using a baseline snapshot */
-async function logWritingProgress(chapterId, oldContent, newContent){
+async function updateChapterStatus(id, status){
+  await sb.from('chapters').update({ status }).eq('id', id);
+  const c = chapters.find(c => c.id === id);
+  if(c) c.status = status;
+  renderProjectsList();
+}
+
+/* Suivi quotidien : delta entre l'ancien et le nouveau nombre de mots saisi */
+async function logWritingProgress(chapterId, oldWc, newWc){
   const today = todayStr();
-  const newWc = wordCount(newContent);
   let existing = sessions.find(s => s.date === today && s.chapter_id === chapterId);
 
   if(!existing){
-    const baseline = wordCount(oldContent);
-    const delta = newWc - baseline;
+    const delta = newWc - oldWc;
     const { data, error } = await sb.from('writing_sessions')
       .upsert({ user_id: currentUser.id, date: today, chapter_id: chapterId, words_written: delta }, { onConflict: 'user_id,date,chapter_id' })
       .select().single();
     if(!error){ sessions.push(data); }
   } else {
-    // Add this save's incremental change to the running total already logged today
-    const delta = existing.words_written + (newWc - wordCount(oldContent));
+    const delta = existing.words_written + (newWc - oldWc);
     const { data, error } = await sb.from('writing_sessions')
       .update({ words_written: delta })
       .eq('id', existing.id).select().single();
@@ -699,8 +691,107 @@ async function logWritingProgress(chapterId, oldContent, newContent){
   }
 }
 
+/* ---------- KPI WIDGET (repris du design de Clothilde) ---------- */
+function estimateFinishText(project, projectChapters){
+  const totalGoal = project.total_word_goal || 0;
+  const motsEcrits = projectChapters.reduce((a,c) => a + (c.word_count||0), 0);
+  if(totalGoal <= 0) return '-';
+  if(motsEcrits <= 0) return 'Non commencé';
+  const remaining = totalGoal - motsEcrits;
+  if(remaining <= 0) return '🎉 Terminé';
+
+  const chapIds = projectChapters.map(c => c.id);
+  const byDate = {};
+  sessions.filter(s => chapIds.includes(s.chapter_id)).forEach(s => {
+    byDate[s.date] = (byDate[s.date]||0) + Math.max(0, s.words_written);
+  });
+  const activeDays = Object.values(byDate).filter(w => w > 0);
+  if(activeDays.length === 0) return 'Rythme inconnu';
+  const avgPace = activeDays.reduce((a,b)=>a+b,0) / activeDays.length;
+  if(avgPace <= 0) return 'Rythme inconnu';
+  const daysNeeded = Math.ceil(remaining / avgPace);
+  const finishDate = new Date(); finishDate.setDate(finishDate.getDate() + daysNeeded);
+  return finishDate.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+}
+
+function renderKpiWidget(project){
+  const projectChapters = chapters.filter(c => c.project_id === project.id);
+  const mots = projectChapters.reduce((a,c) => a + (c.word_count||0), 0);
+  const total = project.total_word_goal || 0;
+  const chaptotal = projectChapters.length; // auto : nombre total de chapitres importés depuis Notion
+  const chap = projectChapters.filter(c => c.status === 'done').length; // auto : marqués "Terminé"
+  const pourcent = total > 0 ? Math.min(100, Math.round((mots/total)*100)) : 0;
+  const motsRestants = Math.max(0, total - mots);
+  const chapRestants = Math.max(0, chaptotal - chap);
+  const col1 = project.kpi_color1 || '#7C93AC';
+  const col2 = project.kpi_color2 || '#1F2E45';
+  const estimation = estimateFinishText(project, projectChapters);
+  const grad = `background:linear-gradient(135deg, ${col1}, ${col2}); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;`;
+
+  return `
+  <div class="kpi-widget">
+    <div class="active-novel-banner">« ${escapeHtml(project.name)} »</div>
+    <div class="dashboard-container">
+      <div class="kpi-card">
+        <div class="card-header">
+          <div class="card-title">✒️ Premier Jet</div>
+          <div class="card-main-value" style="${grad}">${pourcent} %</div>
+          <div class="ornament">❧ ═══ ⚙ ═══ ☙</div>
+        </div>
+        <div class="card-middle">
+          <div class="text-medium">${mots.toLocaleString('fr-FR')} / ${total.toLocaleString('fr-FR')}</div>
+          <div class="text-sub">mots traités</div>
+        </div>
+        <div class="card-footer">
+          <div class="ornament">✦ ═ ✦</div>
+          <div class="text-sub">${motsRestants > 0 ? `Encore ${motsRestants.toLocaleString('fr-FR')} mots` : '🎉 Objectif atteint !'}</div>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="card-header">
+          <div class="card-title">📖 Chapitres</div>
+          <div class="card-main-value" style="${grad}">${chap} / ${chaptotal}</div>
+          <div class="ornament">❧ ═══ ⚙ ═══ ☙</div>
+        </div>
+        <div class="card-middle">
+          <div class="text-sub">${chapRestants} restant${chapRestants > 1 ? 's' : ''}</div>
+          <div style="font-size:18px; margin-top:4px; opacity:.65;">📖</div>
+        </div>
+        <div class="card-footer">
+          <div class="ornament">✦ ═ ✦</div>
+          <div class="text-medium">Chapitre ${chap}</div>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="card-header">
+          <div class="card-title">⏳ Estimation</div>
+          <div class="calendar-icon">📅</div>
+          <div class="ornament">❧ ═══ ⚙ ═══ ☙</div>
+        </div>
+        <div class="card-middle">
+          <div class="text-sub">Fin estimée :</div>
+          <div class="text-medium" style="font-size:14px;">${estimation}</div>
+        </div>
+        <div class="card-footer">
+          <div class="ornament">✦ ═ ✦</div>
+          <div class="text-sub">Objectif final</div>
+          <div class="text-medium">${total.toLocaleString('fr-FR')} mots</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 /* ---------- PROJECTS ---------- */
 let expandedProjects = {}; // id -> bool
+
+// Extrait le dernier nombre trouvé dans un titre pour trier par ordre de chapitre,
+// même si Notion (ou l'ordre d'import) renvoie les éléments dans le désordre.
+function extractChapterNumber(title){
+  const matches = (title || '').match(/\d+/g);
+  if(!matches || matches.length === 0) return Infinity;
+  return parseInt(matches[matches.length - 1], 10);
+}
 
 function renderProjectsList(){
   const list = document.getElementById('projects-list');
@@ -710,7 +801,9 @@ function renderProjectsList(){
   }
   list.innerHTML = projects.map(p => {
     const isOpen = expandedProjects[p.id] !== false; // ouvert par défaut
-    const projectChapters = chapters.filter(c => c.project_id === p.id).slice().sort((a,b) => (a.order_index||0)-(b.order_index||0));
+    const projectChapters = chapters.filter(c => c.project_id === p.id)
+      .slice()
+      .sort((a,b) => extractChapterNumber(a.title) - extractChapterNumber(b.title));
     return `
     <div class="project-card" id="pj-card-${p.id}">
       <div class="pj-head">
@@ -725,7 +818,20 @@ function renderProjectsList(){
       </div>
       <div class="pj-links">${p.notion_plan_db_id ? 'Base plan liée' : 'Base plan non configurée'} · ${p.notion_project_value ? 'Filtre to-do : ' + escapeHtml(p.notion_project_value) : 'Filtre to-do non configuré'} · ${projectChapters.length} chapitre(s) importé(s)</div>
 
+      ${renderKpiWidget(p)}
+
       <div style="${isOpen ? '' : 'display:none;'}">
+        <details>
+          <summary style="cursor:pointer; font-size:13px; color:var(--navy-mist);">Configurer les objectifs</summary>
+          <div class="pj-config" style="margin-top:10px;">
+            <div class="kpi-config-row">
+              <label>Objectif total (mots)<input type="number" min="0" step="1000" id="pj-totalgoal-${p.id}" value="${p.total_word_goal || 0}"></label>
+              <label>Couleur 1<input type="color" id="pj-col1-${p.id}" value="${p.kpi_color1 || '#7C93AC'}"></label>
+              <label>Couleur 2<input type="color" id="pj-col2-${p.id}" value="${p.kpi_color2 || '#1F2E45'}"></label>
+            </div>
+            <button class="btn-dark" style="margin-top:10px;" onclick="saveProjectGoals('${p.id}')">Enregistrer</button>
+          </div>
+        </details>
         <details>
           <summary style="cursor:pointer; font-size:13px; color:var(--navy-mist);">Configurer le lien Notion</summary>
           <div class="pj-config" style="margin-top:10px;">
@@ -765,8 +871,9 @@ function notionPageUrl(pageId){
 }
 
 function openChapterAndNotion(chapterId, notionPageId){
-  openChapterInEditor(chapterId);
-  switchView('write');
+  switchView('chapters');
+  const card = document.getElementById('chapter-card-' + chapterId);
+  if(card){ card.scrollIntoView({ behavior:'smooth', block:'center' }); card.style.boxShadow = '0 0 0 2px var(--navy-mist)'; setTimeout(() => card.style.boxShadow = '', 1500); }
   if(notionPageId) window.open(notionPageUrl(notionPageId), '_blank');
 }
 
@@ -795,6 +902,19 @@ document.getElementById('new-project-btn').addEventListener('click', async () =>
   const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name }).select().single();
   if(!error){ projects.push(data); expandedProjects[data.id] = true; renderProjectsList(); }
 });
+
+async function saveProjectGoals(id){
+  const totalGoal = parseInt(document.getElementById('pj-totalgoal-' + id).value) || 0;
+  const col1 = document.getElementById('pj-col1-' + id).value;
+  const col2 = document.getElementById('pj-col2-' + id).value;
+  await sb.from('projects').update({
+    total_word_goal: totalGoal, kpi_color1: col1, kpi_color2: col2
+  }).eq('id', id);
+  const p = projects.find(p => p.id === id);
+  if(p){ p.total_word_goal = totalGoal; p.kpi_color1 = col1; p.kpi_color2 = col2; }
+  renderProjectsList();
+  renderDashboard();
+}
 
 async function saveProjectNotionConfig(id){
   const plan = document.getElementById('pj-plan-' + id).value.trim();
@@ -838,15 +958,15 @@ async function syncProjectFromNotion(id){
         const existing = chapters.find(c => c.notion_page_id === item.id);
         const status = mapEtatToStatus(item.etat);
         if(existing){
-          if(existing.title !== item.title || existing.status !== status){
-            await sb.from('chapters').update({ title: item.title, status }).eq('id', existing.id);
-            existing.title = item.title; existing.status = status;
+          if(existing.title !== item.title || existing.status !== status || existing.order_index !== i){
+            await sb.from('chapters').update({ title: item.title, status, order_index: i }).eq('id', existing.id);
+            existing.title = item.title; existing.status = status; existing.order_index = i;
             updatedChapters++;
           }
         } else {
           const { data, error } = await sb.from('chapters').insert({
             user_id: currentUser.id, project_id: p.id, notion_page_id: item.id,
-            title: item.title, content:'', word_goal:2000, status, order_index: i
+            title: item.title, word_count:0, word_goal:2000, status, order_index: i
           }).select().single();
           if(!error){ chapters.push(data); importedChapters++; }
         }
