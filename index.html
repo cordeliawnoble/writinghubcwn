@@ -88,7 +88,7 @@
   /* ===== APP SHELL ===== */
   #app{ display:none; min-height:100vh; }
   #app.active{ display:flex; }
-  body, .main{ background: var(--cream); }
+  .main{ background: transparent; }
   .sidebar{
     width:220px; flex-shrink:0;
     background:var(--panel); color:var(--ink);
@@ -292,6 +292,11 @@
   .banner-rule-row .rule-label{ font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em;}
   .banner-rule-row button.del-rule{ background:none; border:none; color:var(--ink-soft); font-size:16px; opacity:.6;}
   .banner-rule-row button.del-rule:hover{ opacity:1; color:#e08a80; }
+  .banner-rule-image{ display:flex; align-items:center; gap:6px; }
+  .banner-rule-thumb{ width:44px; height:44px; border-radius:8px; object-fit:cover; background:var(--panel); border:1px solid var(--line); flex-shrink:0;}
+  .banner-rule-thumb-empty{ display:flex; align-items:center; justify-content:center; font-size:16px; opacity:.5;}
+  .banner-rule-upload-btn{ font-size:11px; color:var(--navy); border:1px solid var(--line); border-radius:6px; padding:5px 8px; cursor:pointer; white-space:nowrap;}
+  .banner-rule-upload-btn:hover{ background:rgba(212,175,55,0.1); }
 
   /* carte KPI condensée (dashboard) */
   #dash-kpi-widgets{ display:flex; flex-direction:column; gap:16px; }
@@ -495,7 +500,21 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" style="margin-bottom:20px;">
+        <h3>Fond de page</h3>
+        <p class="subtitle" style="margin:0 0 14px;">Une image affichée derrière toute l'application, en filigrane.</p>
+        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+          <img id="appearance-bg-preview" src="" alt="" style="display:none; width:100px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line);">
+          <div id="appearance-bg-placeholder" style="width:100px;height:64px;display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:8px;border:1px solid var(--line);background:var(--panel);">🖼️</div>
+          <label class="banner-rule-upload-btn" style="padding:9px 16px;">
+            Choisir une image
+            <input type="file" accept="image/*" style="display:none;" onchange="uploadPageBackground(this.files[0])">
+          </label>
+          <button class="btn-ghost" onclick="removePageBackground()">Retirer</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
         <h3>Bannières par plage horaire</h3>
         <p class="subtitle" style="margin:0 0 14px;">La bannière du tableau de bord change selon l'heure. Ajoute, modifie ou supprime des plages.</p>
         <div id="banner-rules-list"></div>
@@ -529,6 +548,7 @@ let sessions = []; // {date, words_written}
 let projects = [];
 let dailyGoal = 500;
 let activeChapterId = null;
+let currentPageBackgroundUrl = null;
 let saveTimer = null;
 
 /* ---------- AUTH ---------- */
@@ -575,11 +595,11 @@ function updateDashDatetime(){
 }
 
 const DEFAULT_BANNER_RULES = [
-  { start_hour: 0,  text: "La nuit porte l'inspiration.", sub: "Écris tant que le silence t'appartient." },
-  { start_hour: 6,  text: "Bonjour, écrivaine.", sub: "Un esprit calme écrit en profondeur." },
-  { start_hour: 12, text: "Bel après-midi d'écriture.", sub: "Chaque mot posé est un pas de plus." },
-  { start_hour: 18, text: "Bonne soirée, écrivaine.", sub: "L'histoire continue de s'écrire." },
-  { start_hour: 22, text: "Garde tes mots, écrivaine.", sub: "Demain, une autre page t'attend." },
+  { start_hour: 0,  text: "La nuit porte l'inspiration.", sub: "Écris tant que le silence t'appartient.", image_url: null },
+  { start_hour: 6,  text: "Bonjour, écrivaine.", sub: "Un esprit calme écrit en profondeur.", image_url: null },
+  { start_hour: 12, text: "Bel après-midi d'écriture.", sub: "Chaque mot posé est un pas de plus.", image_url: null },
+  { start_hour: 18, text: "Bonne soirée, écrivaine.", sub: "L'histoire continue de s'écrire.", image_url: null },
+  { start_hour: 22, text: "Garde tes mots, écrivaine.", sub: "Demain, une autre page t'attend.", image_url: null },
 ];
 let bannerRules = DEFAULT_BANNER_RULES.map(r => ({...r}));
 
@@ -592,6 +612,14 @@ function applyBanner(){
   }
   document.getElementById('greeting').textContent = match ? match.text : '';
   document.getElementById('greeting-sub').textContent = match ? match.sub : '';
+  const banner = document.getElementById('dash-banner');
+  if(match && match.image_url){
+    banner.style.backgroundImage = `linear-gradient(rgba(11,6,21,0.55), rgba(11,6,21,0.55)), url('${match.image_url}')`;
+    banner.style.backgroundSize = 'cover';
+    banner.style.backgroundPosition = 'center';
+  } else {
+    banner.style.backgroundImage = '';
+  }
 }
 
 async function onAuthSuccess(user){
@@ -655,11 +683,42 @@ async function loadSettings(){
     activeChapterId = data.current_chapter_id || null;
     applyAvatar(data.avatar_url, data.avatar_name);
     if(data.banner_rules && data.banner_rules.length){ bannerRules = data.banner_rules; }
+    applyPageBackground(data.page_background_url);
   }
   else{
     await sb.from('settings').insert({ user_id: currentUser.id, daily_word_goal: 500 });
     dailyGoal = 500;
   }
+}
+
+function applyPageBackground(url){
+  currentPageBackgroundUrl = url || null;
+  if(url){
+    document.body.style.backgroundImage = `linear-gradient(rgba(11,6,21,0.82), rgba(11,6,21,0.82)), url('${url}')`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundAttachment = 'fixed';
+    document.body.style.backgroundPosition = 'center';
+  } else {
+    document.body.style.backgroundImage = '';
+  }
+}
+
+async function uploadPageBackground(file){
+  if(!file) return;
+  const ext = file.name.split('.').pop();
+  const path = `${currentUser.id}/page-bg-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from('atelier-banners').upload(path, file, { upsert: true });
+  if(error){ alert("Erreur d'upload : " + error.message); return; }
+  const { data } = sb.storage.from('atelier-banners').getPublicUrl(path);
+  await sb.from('settings').update({ page_background_url: data.publicUrl }).eq('user_id', currentUser.id);
+  applyPageBackground(data.publicUrl);
+  renderAppearancePage();
+}
+
+async function removePageBackground(){
+  await sb.from('settings').update({ page_background_url: null }).eq('user_id', currentUser.id);
+  applyPageBackground(null);
+  renderAppearancePage();
 }
 
 function applyAvatar(url, name){
@@ -689,6 +748,15 @@ function renderAppearancePage(){
   } else {
     preview.style.display = 'none'; placeholder.style.display = 'flex';
   }
+
+  const bgPreview = document.getElementById('appearance-bg-preview');
+  const bgPlaceholder = document.getElementById('appearance-bg-placeholder');
+  if(currentPageBackgroundUrl){
+    bgPreview.src = currentPageBackgroundUrl; bgPreview.style.display = 'block'; bgPlaceholder.style.display = 'none';
+  } else {
+    bgPreview.style.display = 'none'; bgPlaceholder.style.display = 'flex';
+  }
+
   renderBannerRulesEditor();
 }
 
@@ -709,11 +777,34 @@ function renderBannerRulesEditor(){
         <div class="rule-label">Dès</div>
         <input type="number" min="0" max="23" value="${rule.start_hour}" onchange="updateBannerRuleField(${i}, 'start_hour', this.value)"> h
       </div>
+      <div class="banner-rule-image">
+        ${rule.image_url
+          ? `<img src="${escapeHtml(rule.image_url)}" class="banner-rule-thumb" alt="">`
+          : `<div class="banner-rule-thumb banner-rule-thumb-empty">🖼️</div>`}
+        <label class="banner-rule-upload-btn">
+          ${rule.image_url ? 'Changer' : 'Image'}
+          <input type="file" accept="image/*" style="display:none;" onchange="uploadBannerRuleImage(${i}, this.files[0])">
+        </label>
+        ${rule.image_url ? `<button class="del-rule" title="Retirer l'image" onclick="updateBannerRuleField(${i}, 'image_url', null); renderBannerRulesEditor();">✕</button>` : ''}
+      </div>
       <input type="text" value="${escapeHtml(rule.text)}" placeholder="Message principal" onchange="updateBannerRuleField(${i}, 'text', this.value)">
       <input type="text" value="${escapeHtml(rule.sub)}" placeholder="Sous-texte" onchange="updateBannerRuleField(${i}, 'sub', this.value)">
-      <button class="del-rule" onclick="removeBannerRule(${i})">✕</button>
+      <button class="del-rule" title="Supprimer cette plage" onclick="removeBannerRule(${i})">✕</button>
     </div>
   `).join('');
+}
+
+async function uploadBannerRuleImage(index, file){
+  if(!file) return;
+  const sorted = bannerRules.slice().sort((a,b) => a.start_hour - b.start_hour);
+  const ext = file.name.split('.').pop();
+  const path = `${currentUser.id}/banner-${sorted[index].start_hour}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from('atelier-banners').upload(path, file, { upsert: true });
+  if(error){ alert("Erreur d'upload : " + error.message); return; }
+  const { data } = sb.storage.from('atelier-banners').getPublicUrl(path);
+  sorted[index].image_url = data.publicUrl;
+  bannerRules = sorted;
+  renderBannerRulesEditor();
 }
 
 function updateBannerRuleField(index, field, value){
@@ -724,7 +815,7 @@ function updateBannerRuleField(index, field, value){
 }
 
 function addBannerRule(){
-  bannerRules.push({ start_hour: 12, text: "Nouveau message", sub: "Nouvelle citation" });
+  bannerRules.push({ start_hour: 12, text: "Nouveau message", sub: "Nouvelle citation", image_url: null });
   renderBannerRulesEditor();
 }
 
