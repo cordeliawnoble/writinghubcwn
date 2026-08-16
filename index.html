@@ -188,11 +188,21 @@
   .moon-goal .stat-label{ font-size:13px; color:var(--ink-soft);}
 
   /* heatmap */
-  .heatmap{ display:flex; gap:3px; flex-wrap:wrap; }
-  .heatmap-week{ display:flex; flex-direction:column; gap:3px; }
-  .heatmap-day{ width:12px; height:12px; border-radius:3px; background:var(--cream-deep); }
-  .heatmap-legend{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-soft); margin-top:10px;}
-  .heatmap-legend .heatmap-day{ width:10px;height:10px;}
+  .heatmap-wrapper{ display:flex; gap:8px; }
+  .heatmap-dow-labels{ display:flex; flex-direction:column; gap:4px; padding-top:18px; }
+  .heatmap-dow-labels span{ height:15px; font-size:10px; color:var(--ink-soft); line-height:15px; }
+  .heatmap-cols{ display:flex; flex-direction:column; gap:4px; overflow-x:auto; }
+  .heatmap-months{ display:flex; gap:4px; padding-left:1px; }
+  .heatmap-months span{ width:15px; font-size:10px; color:var(--ink-soft); text-transform:capitalize; }
+  .heatmap{ display:flex; gap:4px; }
+  .heatmap-week{ display:flex; flex-direction:column; gap:4px; }
+  .heatmap-day{ width:15px; height:15px; border-radius:4px; background:var(--panel); transition:transform .1s; }
+  .heatmap-day:hover{ transform:scale(1.25); }
+  .heatmap-legend{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-soft); margin-top:14px;}
+  .heatmap-legend .heatmap-day{ width:12px;height:12px; cursor:default;}
+  .heatmap-legend .heatmap-day:hover{ transform:none; }
+  .heatmap-summary{ font-size:13px; color:var(--ink-soft); margin-bottom:14px; font-style:italic; }
+  .heatmap-summary strong{ color:var(--navy); font-style:normal; }
 
   /* chapter preview */
   .chapter-preview .cp-title{ font-size:20px; color:var(--navy); margin:0 0 2px;}
@@ -458,7 +468,14 @@
       <p class="subtitle">Ta régularité, semaine après semaine.</p>
       <div class="card" style="margin-bottom:20px;">
         <h3>Assiduité (12 dernières semaines)</h3>
-        <div class="heatmap" id="stats-heatmap"></div>
+        <p class="heatmap-summary" id="heatmap-summary"></p>
+        <div class="heatmap-wrapper">
+          <div class="heatmap-dow-labels"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span></div>
+          <div class="heatmap-cols">
+            <div class="heatmap-months" id="heatmap-months"></div>
+            <div class="heatmap" id="stats-heatmap"></div>
+          </div>
+        </div>
         <div class="heatmap-legend">
           <span>Moins</span>
           <div class="heatmap-day" style="background:var(--panel)"></div>
@@ -1239,11 +1256,13 @@ function renderKpiWidgetCompact(project){
   const chap = projectChapters.filter(c => c.status === 'done').length;
   const pourcent = total > 0 ? Math.min(100, Math.round((mots/total)*100)) : 0;
   const estimation = estimateFinishText(project, projectChapters);
+  const col1 = project.kpi_color1 || '#c9a0f5';
+  const col2 = project.kpi_color2 || '#d4af37';
 
   return `
   <div class="kpi-compact">
     <p class="kpi-compact-title">« ${escapeHtml(project.name)} »</p>
-    <div class="kpi-compact-bar"><div class="kpi-compact-bar-fill" style="width:${pourcent}%"></div></div>
+    <div class="kpi-compact-bar"><div class="kpi-compact-bar-fill" style="width:${pourcent}%; background:linear-gradient(90deg, ${col1}, ${col2});"></div></div>
     <p class="kpi-compact-pct">${mots.toLocaleString('fr-FR')} / ${total.toLocaleString('fr-FR')} mots — ${pourcent}%</p>
     <div class="kpi-compact-stats">
       <div class="kpi-compact-stat"><span class="val">${chap}/${chaptotal}</span><span class="lbl">Chapitres</span></div>
@@ -1612,8 +1631,8 @@ function renderStats(){
   const heatmap = document.getElementById('stats-heatmap');
   const days = [];
   const start = new Date(); start.setDate(start.getDate() - 83);
-  // align to Sunday
-  start.setDate(start.getDate() - start.getDay());
+  // align to Monday
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
   for(let i=0;i<84;i++){
     const d = new Date(start); d.setDate(d.getDate()+i);
     days.push(d.toISOString().slice(0,10));
@@ -1624,18 +1643,35 @@ function renderStats(){
   const weeks = [];
   for(let i=0;i<days.length;i+=7) weeks.push(days.slice(i,i+7));
 
+  let activeDaysCount = 0, totalInRange = 0;
   heatmap.innerHTML = weeks.map(week => `
     <div class="heatmap-week">
       ${week.map(d => {
         const w = byDate[d] || 0;
+        if(w > 0){ activeDaysCount++; totalInRange += w; }
         let color = 'var(--panel)';
         if(w > 0 && w < 200) color = '#6b4f8f';
         else if(w >= 200 && w < 600) color = '#9b7fd4';
         else if(w >= 600) color = 'var(--navy)';
-        return `<div class="heatmap-day" style="background:${color}" title="${d} — ${w} mots"></div>`;
+        const dateLabel = new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+        return `<div class="heatmap-day" style="background:${color}" title="${dateLabel} — ${w} mots"></div>`;
       }).join('')}
     </div>
   `).join('');
+
+  // repères de mois au-dessus des colonnes de semaines
+  const monthsEl = document.getElementById('heatmap-months');
+  let lastMonth = null;
+  monthsEl.innerHTML = weeks.map(week => {
+    const d = new Date(week[0] + 'T00:00:00');
+    const m = d.getMonth();
+    const label = (m !== lastMonth) ? d.toLocaleDateString('fr-FR', { month:'short' }) : '';
+    lastMonth = m;
+    return `<span>${label}</span>`;
+  }).join('');
+
+  document.getElementById('heatmap-summary').innerHTML =
+    `<strong>${activeDaysCount}</strong> jour${activeDaysCount>1?'s':''} d'écriture sur les 84 derniers — <strong>${totalInRange.toLocaleString('fr-FR')}</strong> mots au total`;
 
   const now = new Date();
   const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate()-7);
