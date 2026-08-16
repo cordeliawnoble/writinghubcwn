@@ -124,6 +124,40 @@
   }
   .card h3{ font-size:18px; margin:0 0 14px; color:var(--navy); display:flex; align-items:center; justify-content:space-between;}
 
+  /* bannière dashboard */
+  .dash-banner{
+    position:relative; overflow:hidden; border-radius:var(--radius); padding:38px 32px;
+    margin-bottom:24px; text-align:center;
+    background: radial-gradient(circle at 85% 20%, rgba(255,255,255,0.10), transparent 45%), linear-gradient(155deg, var(--navy) 0%, #16202f 100%);
+  }
+  .dash-banner-stars{
+    position:absolute; inset:0; opacity:.5; pointer-events:none;
+    background-image:
+      radial-gradient(1.5px 1.5px at 20% 30%, var(--cream) 40%, transparent 41%),
+      radial-gradient(1.5px 1.5px at 70% 20%, var(--cream) 40%, transparent 41%),
+      radial-gradient(1px 1px at 40% 60%, var(--cream) 40%, transparent 41%),
+      radial-gradient(1px 1px at 85% 55%, var(--cream) 40%, transparent 41%),
+      radial-gradient(1.5px 1.5px at 55% 80%, var(--cream) 40%, transparent 41%),
+      radial-gradient(1px 1px at 10% 75%, var(--cream) 40%, transparent 41%);
+  }
+  .dash-banner-text{ position:relative; font-family:'Cormorant Garamond',serif; font-size:32px; font-weight:600; color:var(--cream); margin:0 0 6px;}
+  .dash-banner-sub{ position:relative; font-family:'Caveat',cursive; font-size:20px; color:rgba(246,241,231,0.75); margin:0;}
+
+  /* disposition 3 colonnes */
+  .dash-3col{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; align-items:start;}
+  .dash-col{ display:flex; flex-direction:column; gap:20px; }
+  @media (max-width: 1000px){ .dash-3col{ grid-template-columns:1fr; } }
+
+  /* graphique en barres */
+  .bar-chart{ display:flex; align-items:flex-end; gap:5px; height:110px; }
+  .bar-chart .bar{ flex:1; background:var(--navy-mist); border-radius:4px 4px 0 0; min-height:2px; position:relative; }
+  .bar-chart .bar.today{ background:var(--navy); }
+  .bar-chart-labels{ display:flex; gap:5px; margin-top:6px; }
+  .bar-chart-labels span{ flex:1; text-align:center; font-size:9px; color:var(--ink-soft); }
+
+  /* image de couverture chapitre */
+  .cp-cover{ width:100%; height:140px; object-fit:cover; border-radius:12px; margin-bottom:12px; background:var(--cream-deep);}
+
   /* moon goal widget */
   .moon-goal{ display:flex; align-items:center; gap:20px; }
   .moon-visual{ width:74px; height:74px; border-radius:50%; position:relative; flex-shrink:0; background:var(--navy); overflow:hidden; box-shadow: 0 0 0 1px var(--line);}
@@ -158,6 +192,20 @@
   .todo-row.done span{ text-decoration:line-through; color:var(--ink-soft);}
   .todo-row button.del{ margin-left:auto; background:none;border:none;color:var(--ink-soft); font-size:16px; opacity:.5;}
   .todo-row button.del:hover{ opacity:1; color:#a1473f;}
+  .todo-due{ font-size:11px; color:var(--navy-mist); font-style:italic; white-space:nowrap;}
+
+  /* calendrier des échéances */
+  .todo-calendar{ background:#fff; border-radius:var(--radius); padding:20px 22px; box-shadow:var(--shadow); border:1px solid var(--line); margin-top:20px;}
+  .todo-cal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .todo-cal-header button{ background:none; border:none; font-size:16px; color:var(--navy); cursor:pointer; padding:4px 10px;}
+  .todo-cal-header .todo-cal-month{ font-family:'Cormorant Garamond',serif; font-size:18px; font-weight:600; color:var(--navy);}
+  .todo-cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center;}
+  .todo-cal-dow{ font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; padding-bottom:6px;}
+  .todo-cal-day{ position:relative; padding:8px 0; border-radius:8px; font-size:13px; color:var(--ink); min-height:34px;}
+  .todo-cal-day.other-month{ color:var(--ink-soft); opacity:.35;}
+  .todo-cal-day.today{ background:var(--navy); color:var(--cream); font-weight:600;}
+  .todo-cal-day .dot{ display:block; width:4px; height:4px; border-radius:50%; background:var(--navy-mist); margin:2px auto 0;}
+  .todo-cal-day.today .dot{ background:var(--cream);}
   .add-row{ display:flex; gap:8px; margin-top:12px; }
   .add-row input{ flex:1; padding:9px 12px; border-radius:8px; border:1px solid var(--line); font-family:'Lora',serif;}
   .add-row button{ padding:9px 16px; border-radius:8px; border:none; background:var(--navy); color:var(--cream); font-size:14px;}
@@ -275,10 +323,33 @@
   <div class="main">
     <!-- DASHBOARD -->
     <section id="view-dashboard" class="view">
-      <h2 class="page-title" id="greeting">Bonjour, écrivaine.</h2>
-      <p class="subtitle">Un esprit calme écrit en profondeur.</p>
-      <div class="grid grid-dash">
-        <div style="display:flex;flex-direction:column;gap:20px;">
+      <div class="dash-banner" id="dash-banner">
+        <div class="dash-banner-stars"></div>
+        <p class="dash-banner-text" id="greeting">Bonjour, écrivaine.</p>
+        <p class="dash-banner-sub" id="greeting-sub">Un esprit calme écrit en profondeur.</p>
+      </div>
+
+      <div class="dash-3col">
+        <!-- COLONNE GAUCHE : calendrier + graphique -->
+        <div class="dash-col">
+          <div class="card">
+            <h3>Calendrier</h3>
+            <div id="dash-todo-calendar"></div>
+          </div>
+          <div class="card">
+            <h3>Mots écrits — 14 derniers jours</h3>
+            <div class="bar-chart" id="dash-bar-chart"></div>
+          </div>
+        </div>
+
+        <!-- COLONNE CENTRALE : chapitre en cours -->
+        <div class="dash-col">
+          <div class="card chapter-preview">
+            <h3>Chapitre en cours</h3>
+            <div id="chapter-preview-content">
+              <p class="empty-state" style="padding:10px 0;">Aucun chapitre pour le moment.</p>
+            </div>
+          </div>
           <div class="card">
             <h3>Objectif du jour</h3>
             <div class="moon-goal">
@@ -289,28 +360,17 @@
               </div>
             </div>
           </div>
-          <div class="card chapter-preview">
-            <h3>Chapitre en cours</h3>
-            <div id="chapter-preview-content">
-              <p class="empty-state" style="padding:10px 0;">Aucun chapitre pour le moment.</p>
-            </div>
-          </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:20px;">
-          <div class="card">
-            <h3>Saisie rapide</h3>
-            <textarea class="quick-input" id="quick-input" placeholder="Une idée, une phrase, avant qu'elle ne s'échappe..."></textarea>
-            <div style="display:flex;justify-content:flex-end;margin-top:8px;">
-              <button class="btn-dark" id="quick-save-btn">Noter</button>
-            </div>
-          </div>
+
+        <!-- COLONNE DROITE : stats de projet + à faire -->
+        <div class="dash-col">
+          <div id="dash-kpi-widgets"></div>
           <div class="card">
             <h3>À faire</h3>
             <div id="dash-todo-list"></div>
           </div>
         </div>
       </div>
-      <div id="dash-kpi-widgets"></div>
     </section>
 
     <!-- CHAPTERS -->
@@ -367,6 +427,7 @@
           <button id="todo-add-btn">Ajouter</button>
         </div>
       </div>
+      <div class="todo-calendar" id="todo-calendar"></div>
     </section>
   </div>
 </div>
@@ -425,13 +486,23 @@ sb.auth.onAuthStateChange((event, session) => {
   if(session && !currentUser) onAuthSuccess(session.user);
 });
 
+function applyBanner(){
+  const hour = new Date().getHours();
+  let text, sub;
+  if(hour < 6){ text = "La nuit porte l'inspiration."; sub = "Écris tant que le silence t'appartient."; }
+  else if(hour < 12){ text = "Bonjour, écrivaine."; sub = "Un esprit calme écrit en profondeur."; }
+  else if(hour < 18){ text = "Bel après-midi d'écriture."; sub = "Chaque mot posé est un pas de plus."; }
+  else if(hour < 22){ text = "Bonne soirée, écrivaine."; sub = "L'histoire continue de s'écrire."; }
+  else { text = "Garde tes mots, écrivaine."; sub = "Demain, une autre page t'attend."; }
+  document.getElementById('greeting').textContent = text;
+  document.getElementById('greeting-sub').textContent = sub;
+}
+
 async function onAuthSuccess(user){
   currentUser = user;
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.add('active');
-  const hour = new Date().getHours();
-  document.getElementById('greeting').textContent =
-    hour < 12 ? "Bonjour, écrivaine." : hour < 18 ? "Bel après-midi d'écriture." : "Bonne soirée, écrivaine.";
+  applyBanner();
   await loadEverything();
 }
 
@@ -480,11 +551,17 @@ async function loadSessions(){
 }
 async function loadSettings(){
   const { data } = await sb.from('settings').select('*').eq('user_id', currentUser.id).maybeSingle();
-  if(data){ dailyGoal = data.daily_word_goal; }
+  if(data){ dailyGoal = data.daily_word_goal; activeChapterId = data.current_chapter_id || null; }
   else{
     await sb.from('settings').insert({ user_id: currentUser.id, daily_word_goal: 500 });
     dailyGoal = 500;
   }
+}
+
+async function setCurrentChapter(id){
+  activeChapterId = id || null;
+  await sb.from('settings').update({ current_chapter_id: activeChapterId }).eq('user_id', currentUser.id);
+  renderDashboard();
 }
 
 function wordCount(text){
@@ -503,14 +580,23 @@ function renderDashboard(){
   document.getElementById('moon-fill').style.height = pct + '%';
 
   const container = document.getElementById('chapter-preview-content');
-  const current = chapters.find(c => c.id === activeChapterId) || chapters[chapters.length - 1];
+  const chapterSelect = `
+    <select onchange="setCurrentChapter(this.value)" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid var(--line); font-size:13px; margin-bottom:12px;">
+      <option value="">— Choisir un chapitre —</option>
+      ${chapters.slice().sort((a,b)=>extractChapterNumber(a.title)-extractChapterNumber(b.title))
+        .map(c => `<option value="${c.id}" ${c.id===activeChapterId?'selected':''}>${escapeHtml(c.title)}</option>`).join('')}
+    </select>`;
+  const current = chapters.find(c => c.id === activeChapterId);
   if(!current){
-    container.innerHTML = '<p class="empty-state" style="padding:10px 0;">Aucun chapitre pour le moment.</p>';
+    container.innerHTML = chapterSelect + (chapters.length === 0
+      ? '<p class="empty-state" style="padding:10px 0;">Aucun chapitre pour le moment.</p>'
+      : '<p class="empty-state" style="padding:10px 0;">Choisis le chapitre à mettre en avant.</p>');
   } else {
     const wc = current.word_count || 0;
     const goal = current.word_goal || 1;
     const p = Math.min(100, Math.round((wc / goal) * 100));
-    container.innerHTML = `
+    container.innerHTML = chapterSelect +
+      (current.cover_image_url ? `<img class="cp-cover" src="${escapeHtml(current.cover_image_url)}" alt="">` : '') + `
       <p class="cp-title">${escapeHtml(current.title || 'Sans titre')}</p>
       <p class="cp-meta">${wc.toLocaleString('fr-FR')} / ${current.word_goal.toLocaleString('fr-FR')} mots</p>
       <div class="progress-bar"><div class="progress-bar-fill" style="width:${p}%"></div></div>
@@ -519,14 +605,109 @@ function renderDashboard(){
     `;
   }
   renderDashTodo();
+  renderTodoCalendar();
+  renderBarChart();
 
   const kpiContainer = document.getElementById('dash-kpi-widgets');
   if(kpiContainer) kpiContainer.innerHTML = projects.map(p => renderKpiWidget(p)).join('');
 }
 
+function sortByDueDate(list){
+  return list.slice().sort((a,b) => {
+    if(!a.due_date && !b.due_date) return 0;
+    if(!a.due_date) return 1;
+    if(!b.due_date) return -1;
+    return a.due_date.localeCompare(b.due_date);
+  });
+}
+function formatDueDate(dateStr){
+  if(!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+}
+
+/* ---------- CALENDRIER DES ÉCHÉANCES ---------- */
+let calendarMonthOffset = 0;
+const DOW_LABELS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+const CALENDAR_TARGET_IDS = ['todo-calendar', 'dash-todo-calendar'];
+
+function buildCalendarHtml(){
+  const base = new Date();
+  base.setDate(1);
+  base.setMonth(base.getMonth() + calendarMonthOffset);
+  const year = base.getFullYear(), month = base.getMonth();
+
+  const dueDates = {}; // 'YYYY-MM-DD' -> count
+  todos.forEach(t => { if(t.due_date) dueDates[t.due_date] = (dueDates[t.due_date]||0) + 1; });
+
+  const firstOfMonth = new Date(year, month, 1);
+  const startDow = (firstOfMonth.getDay() + 6) % 7; // lundi = 0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const todayIso = todayStr();
+  const monthLabel = base.toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+
+  let cells = '';
+  for(let i = startDow - 1; i >= 0; i--){
+    cells += `<div class="todo-cal-day other-month">${daysInPrevMonth - i}</div>`;
+  }
+  for(let d = 1; d <= daysInMonth; d++){
+    const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = iso === todayIso;
+    cells += `<div class="todo-cal-day ${isToday ? 'today':''}">${d}${dueDates[iso] ? '<span class="dot"></span>' : ''}</div>`;
+  }
+  const totalCells = startDow + daysInMonth;
+  const trailing = (7 - (totalCells % 7)) % 7;
+  for(let d = 1; d <= trailing; d++){
+    cells += `<div class="todo-cal-day other-month">${d}</div>`;
+  }
+
+  return `
+    <div class="todo-cal-header">
+      <button onclick="calendarMonthOffset--; renderTodoCalendar();">‹</button>
+      <span class="todo-cal-month">${monthLabel}</span>
+      <button onclick="calendarMonthOffset++; renderTodoCalendar();">›</button>
+    </div>
+    <div class="todo-cal-grid">
+      ${DOW_LABELS.map(d => `<div class="todo-cal-dow">${d}</div>`).join('')}
+      ${cells}
+    </div>
+  `;
+}
+
+function renderTodoCalendar(){
+  const html = buildCalendarHtml();
+  CALENDAR_TARGET_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = html;
+  });
+}
+
+/* ---------- GRAPHIQUE MOTS ÉCRITS (14 derniers jours) ---------- */
+function renderBarChart(){
+  const el = document.getElementById('dash-bar-chart');
+  if(!el) return;
+  const days = [];
+  for(let i = 13; i >= 0; i--){
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0,10));
+  }
+  const byDate = {};
+  sessions.forEach(s => { byDate[s.date] = (byDate[s.date]||0) + Math.max(0, s.words_written); });
+  const max = Math.max(1, ...days.map(d => byDate[d] || 0));
+  const todayIso = todayStr();
+
+  el.innerHTML = days.map(d => {
+    const w = byDate[d] || 0;
+    const h = Math.max(2, Math.round((w / max) * 100));
+    return `<div class="bar ${d===todayIso?'today':''}" style="height:${h}%" title="${d} — ${w} mots"></div>`;
+  }).join('');
+}
+
 function renderDashTodo(){
   const list = document.getElementById('dash-todo-list');
-  const pending = todos.filter(t => !t.done).slice(0, 5);
+  const pending = sortByDueDate(todos.filter(t => !t.done)).slice(0, 5);
   if(pending.length === 0){
     list.innerHTML = '<p class="empty-state" style="padding:6px 0;">Rien en attente.</p>';
     return;
@@ -535,33 +716,29 @@ function renderDashTodo(){
     <div class="todo-row ${t.done ? 'done':''}">
       <input type="checkbox" ${t.done ? 'checked':''} onchange="toggleTodo('${t.id}', this.checked)">
       <span>${escapeHtml(t.text)}</span>
+      ${t.due_date ? `<span class="todo-due">Éch. ${formatDueDate(t.due_date)}</span>` : ''}
     </div>
   `).join('');
 }
 
-document.getElementById('quick-save-btn').addEventListener('click', async () => {
-  const input = document.getElementById('quick-input');
-  const text = input.value.trim();
-  if(!text) return;
-  const { data, error } = await sb.from('todos').insert({ user_id: currentUser.id, text, done:false }).select().single();
-  if(!error){ todos.push(data); input.value=''; renderTodoLists(); renderDashTodo(); }
-});
-
 /* ---------- TODO ---------- */
 function renderTodoLists(){
   const full = document.getElementById('todo-list-full');
-  if(todos.length === 0){
+  const sorted = sortByDueDate(todos);
+  if(sorted.length === 0){
     full.innerHTML = '<p class="empty-state" style="padding:6px 0;">Aucune tâche pour l’instant.</p>';
   } else {
-    full.innerHTML = todos.map(t => `
+    full.innerHTML = sorted.map(t => `
       <div class="todo-row ${t.done ? 'done':''}">
         <input type="checkbox" ${t.done ? 'checked':''} onchange="toggleTodo('${t.id}', this.checked)">
         <span>${escapeHtml(t.text)}</span>
+        ${t.due_date ? `<span class="todo-due">Éch. ${formatDueDate(t.due_date)}</span>` : ''}
         <button class="del" onclick="deleteTodo('${t.id}')">✕</button>
       </div>
     `).join('');
   }
   renderDashTodo();
+  renderTodoCalendar();
 }
 async function toggleTodo(id, done){
   await sb.from('todos').update({ done }).eq('id', id);
@@ -618,6 +795,7 @@ function renderChaptersList(){
           <option value="in_progress" ${c.status==='in_progress'?'selected':''}>En cours</option>
           <option value="done" ${c.status==='done'?'selected':''}>Terminé</option>
         </select>
+        <button onclick="setChapterCoverImage('${c.id}')" title="Définir une image de couverture" style="background:none;border:none;color:var(--ink-soft);font-size:16px;">🖼️</button>
         <button class="del" onclick="deleteChapter('${c.id}')" style="background:none;border:none;color:var(--ink-soft);font-size:16px;">✕</button>
       </div>
     `;
@@ -669,6 +847,16 @@ async function updateChapterStatus(id, status){
   const c = chapters.find(c => c.id === id);
   if(c) c.status = status;
   renderProjectsList();
+}
+
+async function setChapterCoverImage(id){
+  const c = chapters.find(c => c.id === id);
+  if(!c) return;
+  const url = prompt("URL de l'image de couverture :", c.cover_image_url || '');
+  if(url === null) return;
+  await sb.from('chapters').update({ cover_image_url: url }).eq('id', id);
+  c.cover_image_url = url;
+  renderDashboard();
 }
 
 /* Suivi quotidien : delta entre l'ancien et le nouveau nombre de mots saisi */
@@ -886,12 +1074,13 @@ function renderProjectChaptersList(list){
 }
 
 function renderProjectTodosList(projectId){
-  const list = todos.filter(t => t.project_id === projectId);
+  const list = sortByDueDate(todos.filter(t => t.project_id === projectId));
   if(list.length === 0) return '<p class="empty-state" style="padding:6px 0;">Aucune tâche importée pour le moment.</p>';
   return list.map(t => `
     <div class="pj-item ${t.done ? 'pj-done':''}">
       <input type="checkbox" ${t.done ? 'checked':''} onchange="toggleTodo('${t.id}', this.checked)">
       <span>${escapeHtml(t.text)}</span>
+      ${t.due_date ? `<span class="todo-due">${formatDueDate(t.due_date)}</span>` : ''}
     </div>
   `).join('');
 }
@@ -978,15 +1167,15 @@ async function syncProjectFromNotion(id){
       for(const item of todoItems){
         const existing = todos.find(t => t.notion_page_id === item.id);
         if(existing){
-          if(existing.done !== item.done){
-            await sb.from('todos').update({ done: item.done }).eq('id', existing.id);
-            existing.done = item.done;
+          if(existing.done !== item.done || existing.due_date !== item.due){
+            await sb.from('todos').update({ done: item.done, due_date: item.due }).eq('id', existing.id);
+            existing.done = item.done; existing.due_date = item.due;
             updatedTodos++;
           }
         } else {
           const { data, error } = await sb.from('todos').insert({
             user_id: currentUser.id, project_id: p.id, notion_page_id: item.id,
-            text: item.title, done: item.done
+            text: item.title, done: item.done, due_date: item.due
           }).select().single();
           if(!error){ todos.push(data); importedTodos++; }
         }
