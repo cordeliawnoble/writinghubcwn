@@ -234,6 +234,13 @@
   .todo-cal-legend{ display:flex; gap:16px; justify-content:center; font-size:11px; color:var(--ink-soft); margin-bottom:10px; }
   .todo-cal-legend span{ display:flex; align-items:center; gap:5px; }
   .todo-cal-legend .dot{ position:relative; }
+
+  /* récap mensuel/annuel */
+  .recap-row{ display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px;}
+  .recap-row:last-child{ border-bottom:none; }
+  .recap-row .recap-words{ color:var(--navy); font-family:'Cormorant Garamond',serif; font-weight:600; font-size:16px;}
+  .recap-row button{ background:none; border:none; color:var(--ink-soft); font-size:12px; margin-left:10px; text-decoration:underline; cursor:pointer;}
+  .recap-row.manual .recap-words::after{ content:' *'; color:var(--navy-mist); }
   .add-row{ display:flex; gap:8px; margin-top:12px; }
   .add-row input{ flex:1; padding:9px 12px; border-radius:8px; border:1px solid var(--line); font-family:'Lora',serif; background:var(--panel); color:var(--ink);}
   .add-row button{ padding:9px 16px; border-radius:30px; border:1.5px solid var(--navy); background:transparent; color:var(--navy); font-size:14px;}
@@ -463,8 +470,25 @@
       </div>
       <div class="grid" style="grid-template-columns:repeat(3,1fr);">
         <div class="card"><h3>Mots — 7 jours</h3><div class="stat-num" id="stat-week" style="font-size:28px;color:var(--navy);">0</div></div>
-        <div class="card"><h3>Mots — 30 jours</h3><div class="stat-num" id="stat-month" style="font-size:28px;color:var(--navy);">0</div></div>
+        <div class="card"><h3>Mots — ce mois-ci</h3><div class="stat-num" id="stat-month" style="font-size:28px;color:var(--navy);">0</div></div>
         <div class="card"><h3>Meilleure série</h3><div class="stat-num" id="stat-streak" style="font-size:28px;color:var(--navy);">0 j</div></div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 1fr; margin-top:20px;">
+        <div class="card">
+          <h3>Récap mensuel</h3>
+          <div id="monthly-recap-list"></div>
+          <button class="btn-ghost" style="margin-top:12px;" onclick="addOrEditMonthTotal()">+ Remplir un ancien mois</button>
+        </div>
+        <div class="card">
+          <h3>Récap annuel</h3>
+          <div id="yearly-recap-list"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px; text-align:center;">
+        <h3 style="justify-content:center;">Total général</h3>
+        <div class="stat-num" id="stat-grand-total" style="font-size:32px; color:var(--navy);">0 mots</div>
       </div>
     </section>
 
@@ -535,6 +559,7 @@ let currentUser = null;
 let chapters = [];
 let todos = [];
 let sessions = []; // {date, words_written}
+let monthlyTotals = []; // {year, month, words_total} — saisis manuellement pour les anciens mois
 let projects = [];
 let dailyGoal = 500;
 let activeChapterId = null;
@@ -639,12 +664,13 @@ function switchView(view){
 
 /* ---------- DATA LOADING ---------- */
 async function loadEverything(){
-  await Promise.all([loadChapters(), loadTodos(), loadSessions(), loadSettings(), loadProjects()]);
+  await Promise.all([loadChapters(), loadTodos(), loadSessions(), loadSettings(), loadProjects(), loadMonthlyTotals()]);
   applyBanner();
   renderDashboard();
   renderTodoLists();
   renderProjectsList();
   renderAppearancePage();
+  renderStats();
 }
 
 async function loadProjects(){
@@ -661,9 +687,13 @@ async function loadTodos(){
   if(!error) todos = data || [];
 }
 async function loadSessions(){
-  const since = new Date(); since.setDate(since.getDate() - 84);
+  const since = new Date(); since.setDate(since.getDate() - 400); // ~13 mois, pour les récaps
   const { data, error } = await sb.from('writing_sessions').select('*').gte('date', since.toISOString().slice(0,10));
   if(!error) sessions = data || [];
+}
+async function loadMonthlyTotals(){
+  const { data, error } = await sb.from('monthly_totals').select('*');
+  if(!error) monthlyTotals = data || [];
 }
 async function loadSettings(){
   const { data } = await sb.from('settings').select('*').eq('user_id', currentUser.id).maybeSingle();
@@ -1609,9 +1639,9 @@ function renderStats(){
 
   const now = new Date();
   const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate()-7);
-  const monthAgo = new Date(now); monthAgo.setDate(monthAgo.getDate()-30);
   const weekTotal = sessions.filter(s => new Date(s.date) >= weekAgo).reduce((a,s)=>a+Math.max(0,s.words_written),0);
-  const monthTotal = sessions.filter(s => new Date(s.date) >= monthAgo).reduce((a,s)=>a+Math.max(0,s.words_written),0);
+  const currentMonthKey = now.toISOString().slice(0,7); // 'YYYY-MM'
+  const monthTotal = sessions.filter(s => s.date.slice(0,7) === currentMonthKey).reduce((a,s)=>a+Math.max(0,s.words_written),0);
 
   let streak = 0, cursor = new Date();
   while(true){
@@ -1622,6 +1652,91 @@ function renderStats(){
   document.getElementById('stat-week').textContent = weekTotal.toLocaleString('fr-FR');
   document.getElementById('stat-month').textContent = monthTotal.toLocaleString('fr-FR');
   document.getElementById('stat-streak').textContent = streak + ' j';
+
+  renderMonthlyRecap();
+}
+
+/* ---------- RÉCAP MENSUEL / ANNUEL ---------- */
+const MONTH_LABELS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+function renderMonthlyRecap(){
+  // 1. totaux calculés automatiquement depuis les sessions (mots écrits via l'Atelier)
+  const computed = {}; // 'YYYY-MM' -> mots
+  sessions.forEach(s => {
+    const key = s.date.slice(0,7);
+    computed[key] = (computed[key] || 0) + Math.max(0, s.words_written);
+  });
+
+  // 2. totaux saisis manuellement (anciens mois), qui remplacent le calcul auto s'ils existent
+  const manual = {}; // 'YYYY-MM' -> mots
+  monthlyTotals.forEach(m => {
+    const key = `${m.year}-${String(m.month).padStart(2,'0')}`;
+    manual[key] = m.words_total;
+  });
+
+  // fusion : tous les mois connus, du plus récent au plus ancien
+  const allKeys = new Set([...Object.keys(computed), ...Object.keys(manual)]);
+  const rows = Array.from(allKeys).sort().reverse().map(key => {
+    const [year, month] = key.split('-').map(Number);
+    const isManual = manual[key] !== undefined;
+    const words = isManual ? manual[key] : computed[key];
+    return { key, year, month, words, isManual };
+  });
+
+  const monthlyEl = document.getElementById('monthly-recap-list');
+  monthlyEl.innerHTML = rows.length === 0
+    ? '<p class="empty-state" style="padding:6px 0;">Aucune donnée pour le moment.</p>'
+    : rows.map(r => `
+        <div class="recap-row ${r.isManual ? 'manual':''}">
+          <span>${MONTH_LABELS[r.month-1]} ${r.year}</span>
+          <span><span class="recap-words">${r.words.toLocaleString('fr-FR')} mots</span><button onclick="addOrEditMonthTotal(${r.year}, ${r.month})">modifier</button></span>
+        </div>
+      `).join('');
+
+  // récap annuel : somme des mois par année
+  const byYear = {};
+  rows.forEach(r => { byYear[r.year] = (byYear[r.year]||0) + r.words; });
+  const yearlyEl = document.getElementById('yearly-recap-list');
+  const years = Object.keys(byYear).sort().reverse();
+  yearlyEl.innerHTML = years.length === 0
+    ? '<p class="empty-state" style="padding:6px 0;">Aucune donnée pour le moment.</p>'
+    : years.map(y => `
+        <div class="recap-row">
+          <span>${y}</span>
+          <span class="recap-words">${byYear[y].toLocaleString('fr-FR')} mots</span>
+        </div>
+      `).join('');
+
+  // total général
+  const grandTotal = rows.reduce((a,r) => a + r.words, 0);
+  document.getElementById('stat-grand-total').textContent = grandTotal.toLocaleString('fr-FR') + ' mots';
+}
+
+async function addOrEditMonthTotal(year, month){
+  const now = new Date();
+  const y = year || now.getFullYear();
+  const m = month || (now.getMonth()+1);
+  const yearInput = prompt("Année (ex: 2025) :", y);
+  if(yearInput === null) return;
+  const monthInput = prompt("Mois (1 à 12) :", m);
+  if(monthInput === null) return;
+  const parsedYear = parseInt(yearInput);
+  const parsedMonth = Math.max(1, Math.min(12, parseInt(monthInput)));
+  if(!parsedYear || !parsedMonth) return;
+
+  const existing = monthlyTotals.find(mt => mt.year === parsedYear && mt.month === parsedMonth);
+  const wordsInput = prompt(`Total de mots écrits pour ${MONTH_LABELS[parsedMonth-1]} ${parsedYear} :`, existing ? existing.words_total : 0);
+  if(wordsInput === null) return;
+  const words = Math.max(0, parseInt(wordsInput) || 0);
+
+  const { data, error } = await sb.from('monthly_totals')
+    .upsert({ user_id: currentUser.id, year: parsedYear, month: parsedMonth, words_total: words }, { onConflict: 'user_id,year,month' })
+    .select().single();
+  if(!error){
+    if(existing){ existing.words_total = words; }
+    else{ monthlyTotals.push(data); }
+    renderMonthlyRecap();
+  }
 }
 
 /* ---------- UTIL ---------- */
