@@ -293,6 +293,18 @@
   .banner-rule-row button.del-rule{ background:none; border:none; color:var(--ink-soft); font-size:16px; opacity:.6;}
   .banner-rule-row button.del-rule:hover{ opacity:1; color:#e08a80; }
 
+  /* carte KPI condensée (dashboard) */
+  #dash-kpi-widgets{ display:flex; flex-direction:column; gap:16px; }
+  .kpi-compact{ background:var(--cream-deep); border-radius:var(--radius); padding:18px 20px; border:1px solid var(--line); box-shadow:var(--shadow); }
+  .kpi-compact-title{ text-align:center; font-family:'Cormorant Garamond',serif; font-style:italic; color:var(--navy-mist); font-size:15px; margin:0 0 12px; }
+  .kpi-compact-bar{ height:8px; border-radius:6px; background:var(--panel); overflow:hidden; margin-bottom:6px; }
+  .kpi-compact-bar-fill{ height:100%; background:linear-gradient(90deg, var(--navy-mist), var(--navy)); }
+  .kpi-compact-pct{ text-align:right; font-size:11px; color:var(--ink-soft); margin-bottom:14px; }
+  .kpi-compact-stats{ display:flex; justify-content:space-between; gap:8px; text-align:center; }
+  .kpi-compact-stat{ flex:1; }
+  .kpi-compact-stat .val{ font-family:'Cormorant Garamond',serif; font-size:17px; font-weight:600; color:var(--navy); display:block; }
+  .kpi-compact-stat .lbl{ font-size:9.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; }
+
   @media (max-width: 860px){
     #app.active{ flex-direction:column; }
     .sidebar{ width:100%; height:auto; position:relative; flex-direction:row; overflow-x:auto; padding:14px;}
@@ -785,7 +797,7 @@ function renderDashboard(){
   renderBarChart();
 
   const kpiContainer = document.getElementById('dash-kpi-widgets');
-  if(kpiContainer) kpiContainer.innerHTML = projects.map(p => renderKpiWidget(p)).join('');
+  if(kpiContainer) kpiContainer.innerHTML = projects.map(p => renderKpiWidgetCompact(p)).join('');
 }
 
 function sortByDueDate(list){
@@ -1078,6 +1090,27 @@ function estimateFinishText(project, projectChapters){
   return finishDate.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
 }
 
+function renderKpiWidgetCompact(project){
+  const projectChapters = chapters.filter(c => c.project_id === project.id);
+  const mots = projectChapters.reduce((a,c) => a + (c.word_count||0), 0);
+  const total = project.total_word_goal || 0;
+  const chaptotal = projectChapters.length;
+  const chap = projectChapters.filter(c => c.status === 'done').length;
+  const pourcent = total > 0 ? Math.min(100, Math.round((mots/total)*100)) : 0;
+  const estimation = estimateFinishText(project, projectChapters);
+
+  return `
+  <div class="kpi-compact">
+    <p class="kpi-compact-title">« ${escapeHtml(project.name)} »</p>
+    <div class="kpi-compact-bar"><div class="kpi-compact-bar-fill" style="width:${pourcent}%"></div></div>
+    <p class="kpi-compact-pct">${mots.toLocaleString('fr-FR')} / ${total.toLocaleString('fr-FR')} mots — ${pourcent}%</p>
+    <div class="kpi-compact-stats">
+      <div class="kpi-compact-stat"><span class="val">${chap}/${chaptotal}</span><span class="lbl">Chapitres</span></div>
+      <div class="kpi-compact-stat"><span class="val" style="font-size:13px;">${estimation}</span><span class="lbl">Fin estimée</span></div>
+    </div>
+  </div>`;
+}
+
 function renderKpiWidget(project){
   const projectChapters = chapters.filter(c => c.project_id === project.id);
   const mots = projectChapters.reduce((a,c) => a + (c.word_count||0), 0);
@@ -1255,8 +1288,8 @@ function renderProjectTodosList(projectId){
   return list.map(t => `
     <div class="pj-item ${t.done ? 'pj-done':''}">
       <input type="checkbox" ${t.done ? 'checked':''} onchange="toggleTodo('${t.id}', this.checked)">
-      <span>${escapeHtml(t.text)}</span>
-      ${t.due_date ? `<span class="todo-due">${formatDueDate(t.due_date)}</span>` : ''}
+      ${t.due_date ? `<span class="todo-due" style="margin-left:0; margin-right:10px;">${formatDueDate(t.due_date)}</span>` : ''}
+      <span style="flex:1;">${escapeHtml(t.text)}</span>
     </div>
   `).join('');
 }
