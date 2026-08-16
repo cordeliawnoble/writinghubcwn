@@ -153,6 +153,7 @@
   }
   .dash-banner-text{ position:relative; font-family:'Cormorant Garamond',serif; font-size:32px; font-weight:600; color:var(--navy); margin:0 0 6px;}
   .dash-banner-sub{ position:relative; font-family:'Caveat',cursive; font-size:20px; color:var(--navy-mist); margin:0;}
+  .dash-datetime{ text-align:center; font-size:13px; color:var(--ink-soft); letter-spacing:.04em; margin:0 0 22px; text-transform:capitalize;}
 
   /* disposition 3 colonnes */
   .dash-3col{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; align-items:start;}
@@ -283,6 +284,15 @@
   .kpi-config-row input[type=number]{ width:90px; padding:6px 8px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--ink);}
   .kpi-config-row input[type=color]{ width:44px; height:30px; border:1px solid var(--line); border-radius:6px; padding:2px; background:var(--panel);}
 
+  /* apparence */
+  .banner-rule-row{ display:flex; gap:8px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); flex-wrap:wrap;}
+  .banner-rule-row:last-child{ border-bottom:none; }
+  .banner-rule-row input[type=number]{ width:60px; padding:7px 8px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--ink); text-align:center;}
+  .banner-rule-row input[type=text]{ flex:1; min-width:140px; padding:7px 10px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--ink); font-family:'Lora',serif;}
+  .banner-rule-row .rule-label{ font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em;}
+  .banner-rule-row button.del-rule{ background:none; border:none; color:var(--ink-soft); font-size:16px; opacity:.6;}
+  .banner-rule-row button.del-rule:hover{ opacity:1; color:#e08a80; }
+
   @media (max-width: 860px){
     #app.active{ flex-direction:column; }
     .sidebar{ width:100%; height:auto; position:relative; flex-direction:row; overflow-x:auto; padding:14px;}
@@ -322,7 +332,7 @@
 <!-- ================= APP ================= -->
 <div id="app">
   <div class="sidebar">
-    <div class="avatar-block" id="avatar-block" onclick="editAvatar()">
+    <div class="avatar-block" id="avatar-block" onclick="switchView('appearance')">
       <img class="avatar-img" id="avatar-img" src="" alt="" style="display:none;">
       <div class="avatar-img" id="avatar-placeholder" style="display:flex;align-items:center;justify-content:center;font-size:24px;">🐈‍⬛</div>
       <span class="avatar-name" id="avatar-name">Ma plume</span>
@@ -333,6 +343,7 @@
     <button class="nav-item" data-view="projects"><span class="dot"></span>Projets</button>
     <button class="nav-item" data-view="stats"><span class="dot"></span>Statistiques</button>
     <button class="nav-item" data-view="todo"><span class="dot"></span>À faire</button>
+    <button class="nav-item" data-view="appearance"><span class="dot"></span>Apparence</button>
     <div class="sidebar-footer">
       <button id="logout-btn">Se déconnecter</button>
     </div>
@@ -346,6 +357,8 @@
         <p class="dash-banner-text" id="greeting">Bonjour, écrivaine.</p>
         <p class="dash-banner-sub" id="greeting-sub">Un esprit calme écrit en profondeur.</p>
       </div>
+
+      <p class="dash-datetime" id="dash-datetime"></p>
 
       <div class="dash-3col">
         <!-- COLONNE GAUCHE : calendrier + graphique -->
@@ -384,7 +397,7 @@
         <div class="dash-col">
           <div id="dash-kpi-widgets"></div>
           <div class="card">
-            <h3>À faire</h3>
+            <h3>À faire aujourd'hui</h3>
             <div id="dash-todo-list"></div>
           </div>
         </div>
@@ -447,6 +460,42 @@
       </div>
       <div class="todo-calendar" id="todo-calendar"></div>
     </section>
+
+    <!-- APPEARANCE -->
+    <section id="view-appearance" class="view" style="display:none;">
+      <h2 class="page-title">Apparence</h2>
+      <p class="subtitle">Ton avatar et les messages d'accueil selon l'heure.</p>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h3>Avatar</h3>
+        <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+          <img class="avatar-img" id="appearance-avatar-preview" src="" alt="" style="display:none; width:72px; height:72px;">
+          <div class="avatar-img" id="appearance-avatar-placeholder" style="width:72px;height:72px;display:flex;align-items:center;justify-content:center;font-size:28px;">🐈‍⬛</div>
+          <div style="flex:1; min-width:220px;">
+            <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:4px;">Nom affiché</label>
+            <input type="text" id="appearance-avatar-name" placeholder="ex : Walter" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink); margin-bottom:10px;">
+            <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:4px;">URL de l'image</label>
+            <input type="text" id="appearance-avatar-url" placeholder="https://..." style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink);">
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+          <button class="btn-dark" onclick="saveAppearanceAvatar()">Enregistrer l'avatar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Bannières par plage horaire</h3>
+        <p class="subtitle" style="margin:0 0 14px;">La bannière du tableau de bord change selon l'heure. Ajoute, modifie ou supprime des plages.</p>
+        <div id="banner-rules-list"></div>
+        <div style="display:flex; justify-content:space-between; margin-top:14px;">
+          <button class="btn-ghost" onclick="addBannerRule()">+ Ajouter une plage</button>
+          <div>
+            <button class="btn-ghost" onclick="resetBannerRules()" style="margin-right:8px;">Réinitialiser</button>
+            <button class="btn-dark" onclick="saveBannerRules()">Enregistrer les bannières</button>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -504,23 +553,41 @@ sb.auth.onAuthStateChange((event, session) => {
   if(session && !currentUser) onAuthSuccess(session.user);
 });
 
+function updateDashDatetime(){
+  const el = document.getElementById('dash-datetime');
+  if(!el) return;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const timeStr = now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+  el.textContent = `${dateStr} — ${timeStr}`;
+}
+
+const DEFAULT_BANNER_RULES = [
+  { start_hour: 0,  text: "La nuit porte l'inspiration.", sub: "Écris tant que le silence t'appartient." },
+  { start_hour: 6,  text: "Bonjour, écrivaine.", sub: "Un esprit calme écrit en profondeur." },
+  { start_hour: 12, text: "Bel après-midi d'écriture.", sub: "Chaque mot posé est un pas de plus." },
+  { start_hour: 18, text: "Bonne soirée, écrivaine.", sub: "L'histoire continue de s'écrire." },
+  { start_hour: 22, text: "Garde tes mots, écrivaine.", sub: "Demain, une autre page t'attend." },
+];
+let bannerRules = DEFAULT_BANNER_RULES.map(r => ({...r}));
+
 function applyBanner(){
   const hour = new Date().getHours();
-  let text, sub;
-  if(hour < 6){ text = "La nuit porte l'inspiration."; sub = "Écris tant que le silence t'appartient."; }
-  else if(hour < 12){ text = "Bonjour, écrivaine."; sub = "Un esprit calme écrit en profondeur."; }
-  else if(hour < 18){ text = "Bel après-midi d'écriture."; sub = "Chaque mot posé est un pas de plus."; }
-  else if(hour < 22){ text = "Bonne soirée, écrivaine."; sub = "L'histoire continue de s'écrire."; }
-  else { text = "Garde tes mots, écrivaine."; sub = "Demain, une autre page t'attend."; }
-  document.getElementById('greeting').textContent = text;
-  document.getElementById('greeting-sub').textContent = sub;
+  const sorted = bannerRules.slice().sort((a,b) => a.start_hour - b.start_hour);
+  let match = sorted[sorted.length - 1]; // par défaut, la dernière plage (couvre le retour à minuit)
+  for(const rule of sorted){
+    if(rule.start_hour <= hour) match = rule;
+  }
+  document.getElementById('greeting').textContent = match ? match.text : '';
+  document.getElementById('greeting-sub').textContent = match ? match.sub : '';
 }
 
 async function onAuthSuccess(user){
   currentUser = user;
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.add('active');
-  applyBanner();
+  updateDashDatetime();
+  setInterval(updateDashDatetime, 60000);
   await loadEverything();
 }
 
@@ -543,10 +610,12 @@ function switchView(view){
 /* ---------- DATA LOADING ---------- */
 async function loadEverything(){
   await Promise.all([loadChapters(), loadTodos(), loadSessions(), loadSettings(), loadProjects()]);
+  applyBanner();
   renderDashboard();
   renderChaptersList();
   renderTodoLists();
   renderProjectsList();
+  renderAppearancePage();
 }
 
 async function loadProjects(){
@@ -573,6 +642,7 @@ async function loadSettings(){
     dailyGoal = data.daily_word_goal;
     activeChapterId = data.current_chapter_id || null;
     applyAvatar(data.avatar_url, data.avatar_name);
+    if(data.banner_rules && data.banner_rules.length){ bannerRules = data.banner_rules; }
   }
   else{
     await sb.from('settings').insert({ user_id: currentUser.id, daily_word_goal: 500 });
@@ -594,15 +664,74 @@ function applyAvatar(url, name){
   nameEl.textContent = name || 'Ma plume';
 }
 
-async function editAvatar(){
-  const nameEl = document.getElementById('avatar-name');
-  const currentName = nameEl.textContent;
-  const newName = prompt("Nom affiché (ex : Walter) :", currentName);
-  if(newName === null) return;
-  const newUrl = prompt("URL de l'image d'avatar (laisse vide pour l'icône par défaut) :", document.getElementById('avatar-img').src.includes('http') ? document.getElementById('avatar-img').src : '');
-  if(newUrl === null) return;
-  await sb.from('settings').update({ avatar_url: newUrl || null, avatar_name: newName }).eq('user_id', currentUser.id);
-  applyAvatar(newUrl || null, newName);
+/* ---------- APPARENCE ---------- */
+function renderAppearancePage(){
+  // avatar : pré-remplit les champs avec l'état actuel
+  const currentUrl = document.getElementById('avatar-img').src;
+  document.getElementById('appearance-avatar-url').value = currentUrl.includes('http') ? currentUrl : '';
+  document.getElementById('appearance-avatar-name').value = document.getElementById('avatar-name').textContent;
+  const preview = document.getElementById('appearance-avatar-preview');
+  const placeholder = document.getElementById('appearance-avatar-placeholder');
+  if(currentUrl.includes('http')){
+    preview.src = currentUrl; preview.style.display = 'block'; placeholder.style.display = 'none';
+  } else {
+    preview.style.display = 'none'; placeholder.style.display = 'flex';
+  }
+  renderBannerRulesEditor();
+}
+
+async function saveAppearanceAvatar(){
+  const url = document.getElementById('appearance-avatar-url').value.trim();
+  const name = document.getElementById('appearance-avatar-name').value.trim() || 'Ma plume';
+  await sb.from('settings').update({ avatar_url: url || null, avatar_name: name }).eq('user_id', currentUser.id);
+  applyAvatar(url || null, name);
+  renderAppearancePage();
+}
+
+function renderBannerRulesEditor(){
+  const el = document.getElementById('banner-rules-list');
+  const sorted = bannerRules.slice().sort((a,b) => a.start_hour - b.start_hour);
+  el.innerHTML = sorted.map((rule, i) => `
+    <div class="banner-rule-row">
+      <div>
+        <div class="rule-label">Dès</div>
+        <input type="number" min="0" max="23" value="${rule.start_hour}" onchange="updateBannerRuleField(${i}, 'start_hour', this.value)"> h
+      </div>
+      <input type="text" value="${escapeHtml(rule.text)}" placeholder="Message principal" onchange="updateBannerRuleField(${i}, 'text', this.value)">
+      <input type="text" value="${escapeHtml(rule.sub)}" placeholder="Sous-texte" onchange="updateBannerRuleField(${i}, 'sub', this.value)">
+      <button class="del-rule" onclick="removeBannerRule(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function updateBannerRuleField(index, field, value){
+  const sorted = bannerRules.slice().sort((a,b) => a.start_hour - b.start_hour);
+  if(field === 'start_hour') value = Math.max(0, Math.min(23, parseInt(value) || 0));
+  sorted[index][field] = value;
+  bannerRules = sorted;
+}
+
+function addBannerRule(){
+  bannerRules.push({ start_hour: 12, text: "Nouveau message", sub: "Nouvelle citation" });
+  renderBannerRulesEditor();
+}
+
+function removeBannerRule(index){
+  const sorted = bannerRules.slice().sort((a,b) => a.start_hour - b.start_hour);
+  sorted.splice(index, 1);
+  bannerRules = sorted;
+  renderBannerRulesEditor();
+}
+
+function resetBannerRules(){
+  bannerRules = DEFAULT_BANNER_RULES.map(r => ({...r}));
+  renderBannerRulesEditor();
+}
+
+async function saveBannerRules(){
+  await sb.from('settings').update({ banner_rules: bannerRules }).eq('user_id', currentUser.id);
+  applyBanner();
+  alert('Bannières enregistrées !');
 }
 
 async function setCurrentChapter(id){
@@ -754,16 +883,16 @@ function renderBarChart(){
 
 function renderDashTodo(){
   const list = document.getElementById('dash-todo-list');
-  const pending = sortByDueDate(todos.filter(t => !t.done)).slice(0, 5);
-  if(pending.length === 0){
-    list.innerHTML = '<p class="empty-state" style="padding:6px 0;">Rien en attente.</p>';
+  const today = todayStr();
+  const todayTasks = todos.filter(t => !t.done && t.due_date === today);
+  if(todayTasks.length === 0){
+    list.innerHTML = '<p class="empty-state" style="padding:6px 0;">Rien de prévu aujourd\'hui.</p>';
     return;
   }
-  list.innerHTML = pending.map(t => `
+  list.innerHTML = todayTasks.map(t => `
     <div class="todo-row ${t.done ? 'done':''}">
       <input type="checkbox" ${t.done ? 'checked':''} onchange="toggleTodo('${t.id}', this.checked)">
       <span>${escapeHtml(t.text)}</span>
-      ${t.due_date ? `<span class="todo-due">Éch. ${formatDueDate(t.due_date)}</span>` : ''}
     </div>
   `).join('');
 }
