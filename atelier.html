@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L'Atelier — Espace d'écriture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --cream: #F6F1E7;
+    --cream-deep: #ECE3D2;
+    --navy: #1F2E45;
+    --navy-soft: #33475F;
+    --navy-mist: #7C93AC;
+    --ink: #262420;
+    --ink-soft: #6b6558;
+    --line: rgba(31,46,69,0.12);
+    --shadow: 0 8px 24px rgba(31,46,69,0.08);
+    --radius: 16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--cream);
+    color: var(--ink);
+    font-family:'Lora', serif;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{
+    font-family:'Cormorant Garamond', serif;
+    font-weight:600;
+    letter-spacing:0.01em;
+  }
+  .hand{ font-family:'Caveat', cursive; }
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+
+  /* ===== AUTH SCREEN ===== */
+  #auth-screen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(circle at 80% 15%, rgba(255,255,255,0.35), transparent 45%),
+      linear-gradient(160deg, var(--navy) 0%, #16202f 100%);
+    padding:24px;
+  }
+  .auth-card{
+    background: var(--cream);
+    border-radius: var(--radius);
+    padding:40px 36px;
+    max-width:380px;
+    width:100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    text-align:center;
+  }
+  .auth-card .moon{
+    width:52px;height:52px;margin:0 auto 14px;
+    border-radius:50%;
+    background: radial-gradient(circle at 35% 35%, var(--cream) 0 40%, var(--navy) 41% 100%);
+    box-shadow: inset -6px -4px 0 0 var(--navy);
+  }
+  .auth-card h1{ font-size:28px; margin:0 0 4px; color:var(--navy); }
+  .auth-card p.tag{ color:var(--ink-soft); font-size:14px; margin:0 0 28px; font-style:italic;}
+  .field{ text-align:left; margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft); margin-bottom:6px;}
+  .field input{
+    width:100%; padding:11px 14px; border-radius:10px;
+    border:1px solid var(--line); background:#fff;
+    font-family:'Lora',serif; font-size:15px; color:var(--ink);
+  }
+  .field input:focus{ outline:2px solid var(--navy-mist); outline-offset:1px; }
+  .btn-primary{
+    width:100%; padding:12px; border:none; border-radius:10px;
+    background:var(--navy); color:var(--cream); font-size:15px; font-weight:600;
+    margin-top:8px; transition:background .15s;
+  }
+  .btn-primary:hover{ background:var(--navy-soft); }
+  .auth-error{ color:#a1473f; font-size:13px; margin-top:12px; min-height:16px;}
+  .auth-toggle{ margin-top:18px; font-size:13px; color:var(--ink-soft);}
+  .auth-toggle button{ background:none;border:none;color:var(--navy); text-decoration:underline; font-size:13px;}
+
+  /* ===== APP SHELL ===== */
+  #app{ display:none; min-height:100vh; }
+  #app.active{ display:flex; }
+  .sidebar{
+    width:220px; flex-shrink:0;
+    background:var(--navy); color:var(--cream);
+    padding:26px 18px; display:flex; flex-direction:column;
+    position:sticky; top:0; height:100vh;
+  }
+  .sidebar .brand{ display:flex; align-items:center; gap:10px; margin-bottom:36px; padding:0 4px;}
+  .sidebar .brand .moon-mini{
+    width:22px;height:22px;border-radius:50%;flex-shrink:0;
+    background: radial-gradient(circle at 35% 35%, var(--cream) 0 40%, var(--navy-soft) 41% 100%);
+    box-shadow: inset -3px -2px 0 0 rgba(0,0,0,0.4);
+  }
+  .sidebar .brand span{ font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:600;}
+  .nav-item{
+    display:flex; align-items:center; gap:11px;
+    padding:10px 12px; border-radius:9px; margin-bottom:3px;
+    font-size:15px; color:rgba(246,241,231,0.72);
+    border:none; background:none; width:100%; text-align:left;
+  }
+  .nav-item:hover{ background:rgba(246,241,231,0.08); color:var(--cream); }
+  .nav-item.active{ background:rgba(246,241,231,0.14); color:var(--cream); }
+  .nav-item .dot{ width:6px;height:6px;border-radius:50%; background:currentColor; opacity:.6; flex-shrink:0;}
+  .sidebar-footer{ margin-top:auto; padding-top:16px; border-top:1px solid rgba(246,241,231,0.12);}
+  .sidebar-footer button{ background:none;border:none;color:rgba(246,241,231,0.55); font-size:13px; padding:6px 12px;}
+  .sidebar-footer button:hover{ color:var(--cream); }
+
+  .main{ flex:1; padding:32px 40px; max-width:1180px; }
+  .main h2.page-title{ font-size:30px; color:var(--navy); margin:0 0 4px;}
+  .main p.subtitle{ color:var(--ink-soft); font-style:italic; margin:0 0 28px; font-size:15px;}
+
+  .grid{ display:grid; gap:20px; }
+  .grid-dash{ grid-template-columns: 1.3fr 1fr; }
+  .card{
+    background:#fff; border-radius:var(--radius); padding:22px 24px;
+    box-shadow:var(--shadow); border:1px solid var(--line);
+  }
+  .card h3{ font-size:18px; margin:0 0 14px; color:var(--navy); display:flex; align-items:center; justify-content:space-between;}
+
+  /* moon goal widget */
+  .moon-goal{ display:flex; align-items:center; gap:20px; }
+  .moon-visual{ width:74px; height:74px; border-radius:50%; position:relative; flex-shrink:0; background:var(--navy); overflow:hidden; box-shadow: 0 0 0 1px var(--line);}
+  .moon-fill{ position:absolute; left:0; bottom:0; width:100%; background:linear-gradient(180deg, var(--cream), var(--cream-deep)); transition: height .4s ease;}
+  .moon-goal .stat-num{ font-size:26px; color:var(--navy); font-family:'Cormorant Garamond',serif; font-weight:600;}
+  .moon-goal .stat-label{ font-size:13px; color:var(--ink-soft);}
+
+  /* heatmap */
+  .heatmap{ display:flex; gap:3px; flex-wrap:wrap; }
+  .heatmap-week{ display:flex; flex-direction:column; gap:3px; }
+  .heatmap-day{ width:12px; height:12px; border-radius:3px; background:var(--cream-deep); }
+  .heatmap-legend{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-soft); margin-top:10px;}
+  .heatmap-legend .heatmap-day{ width:10px;height:10px;}
+
+  /* chapter preview */
+  .chapter-preview .cp-title{ font-size:20px; color:var(--navy); margin:0 0 2px;}
+  .chapter-preview .cp-meta{ font-size:13px; color:var(--ink-soft); margin-bottom:10px;}
+  .progress-bar{ height:8px; border-radius:6px; background:var(--cream-deep); overflow:hidden; margin-bottom:6px;}
+  .progress-bar-fill{ height:100%; background:var(--navy-mist); border-radius:6px; transition:width .3s;}
+
+  /* quick input */
+  textarea.quick-input{
+    width:100%; min-height:70px; border-radius:10px; border:1px solid var(--line);
+    padding:12px; font-family:'Caveat',cursive; font-size:19px; resize:vertical; color:var(--ink);
+  }
+  .quick-input:focus{ outline:2px solid var(--navy-mist); }
+
+  /* todo */
+  .todo-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:15px;}
+  .todo-row:last-child{ border-bottom:none;}
+  .todo-row input[type=checkbox]{ width:16px; height:16px; accent-color:var(--navy);}
+  .todo-row.done span{ text-decoration:line-through; color:var(--ink-soft);}
+  .todo-row button.del{ margin-left:auto; background:none;border:none;color:var(--ink-soft); font-size:16px; opacity:.5;}
+  .todo-row button.del:hover{ opacity:1; color:#a1473f;}
+  .add-row{ display:flex; gap:8px; margin-top:12px; }
+  .add-row input{ flex:1; padding:9px 12px; border-radius:8px; border:1px solid var(--line); font-family:'Lora',serif;}
+  .add-row button{ padding:9px 16px; border-radius:8px; border:none; background:var(--navy); color:var(--cream); font-size:14px;}
+
+  /* chapters list / editor */
+  .chapter-card{
+    background:#fff; border-radius:12px; padding:16px 18px; margin-bottom:10px;
+    border:1px solid var(--line); display:flex; align-items:center; gap:16px; cursor:pointer;
+  }
+  .chapter-card:hover{ box-shadow:var(--shadow); }
+  .chapter-card .ci-title{ font-size:17px; color:var(--navy); margin:0;}
+  .chapter-card .ci-meta{ font-size:13px; color:var(--ink-soft);}
+  .chapter-card .ci-bar{ width:120px; flex-shrink:0; }
+  .status-pill{ font-size:11px; padding:3px 9px; border-radius:20px; background:var(--cream-deep); color:var(--navy); text-transform:uppercase; letter-spacing:.05em; flex-shrink:0;}
+  .btn-ghost{ padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--navy); font-size:14px;}
+  .btn-ghost:hover{ background:var(--cream-deep); }
+  .btn-dark{ padding:9px 18px; border-radius:8px; border:none; background:var(--navy); color:var(--cream); font-size:14px;}
+
+  /* editor view */
+  .editor-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:16px; flex-wrap:wrap;}
+  .editor-header input.title-input{
+    font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:600; color:var(--navy);
+    border:none; background:none; padding:2px 0; width:100%;
+  }
+  .editor-header input.title-input:focus{ outline:none; border-bottom:1px solid var(--navy-mist); }
+  .editor-meta-row{ display:flex; gap:18px; align-items:center; font-size:13px; color:var(--ink-soft); margin-bottom:14px; flex-wrap:wrap;}
+  .editor-meta-row input[type=number]{ width:70px; padding:4px 6px; border-radius:6px; border:1px solid var(--line);}
+  textarea.editor-body{
+    width:100%; min-height:52vh; border:1px solid var(--line); border-radius:var(--radius);
+    padding:26px 30px; font-family:'Lora',serif; font-size:17px; line-height:1.75; color:var(--ink);
+    resize:vertical; background:#fff;
+  }
+  textarea.editor-body:focus{ outline:none; box-shadow:0 0 0 2px var(--navy-mist); }
+  .save-indicator{ font-size:12px; color:var(--ink-soft); font-style:italic; }
+
+  .empty-state{ text-align:center; padding:50px 20px; color:var(--ink-soft); font-style:italic;}
+
+  @media (max-width: 860px){
+    #app.active{ flex-direction:column; }
+    .sidebar{ width:100%; height:auto; position:relative; flex-direction:row; overflow-x:auto; padding:14px;}
+    .sidebar .brand{ display:none; }
+    .nav-item{ white-space:nowrap; margin-bottom:0; margin-right:4px;}
+    .sidebar-footer{ display:none; }
+    .main{ padding:22px 18px; }
+    .grid-dash{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH SCREEN ================= -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="moon"></div>
+    <h1>L'Atelier</h1>
+    <p class="tag">Ton espace d'écriture, à l'abri des regards.</p>
+    <div class="field">
+      <label for="auth-email">Email</label>
+      <input id="auth-email" type="email" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="auth-pass">Mot de passe</label>
+      <input id="auth-pass" type="password" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="auth-submit">Entrer</button>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-toggle">
+      <span id="auth-toggle-text">Pas encore de compte ?</span>
+      <button id="auth-toggle-btn">Créer un compte</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <div class="sidebar">
+    <div class="brand"><div class="moon-mini"></div><span>L'Atelier</span></div>
+    <button class="nav-item active" data-view="dashboard"><span class="dot"></span>Tableau de bord</button>
+    <button class="nav-item" data-view="write"><span class="dot"></span>Écriture</button>
+    <button class="nav-item" data-view="chapters"><span class="dot"></span>Chapitres</button>
+    <button class="nav-item" data-view="stats"><span class="dot"></span>Statistiques</button>
+    <button class="nav-item" data-view="todo"><span class="dot"></span>À faire</button>
+    <div class="sidebar-footer">
+      <button id="logout-btn">Se déconnecter</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="view">
+      <h2 class="page-title" id="greeting">Bonjour, écrivaine.</h2>
+      <p class="subtitle">Un esprit calme écrit en profondeur.</p>
+      <div class="grid grid-dash">
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <div class="card">
+            <h3>Objectif du jour</h3>
+            <div class="moon-goal">
+              <div class="moon-visual"><div class="moon-fill" id="moon-fill" style="height:0%"></div></div>
+              <div>
+                <div class="stat-num" id="today-words">0</div>
+                <div class="stat-label">mots écrits sur <span id="today-goal">500</span> — <span id="today-pct">0%</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="card chapter-preview">
+            <h3>Chapitre en cours</h3>
+            <div id="chapter-preview-content">
+              <p class="empty-state" style="padding:10px 0;">Aucun chapitre pour le moment.</p>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <div class="card">
+            <h3>Saisie rapide</h3>
+            <textarea class="quick-input" id="quick-input" placeholder="Une idée, une phrase, avant qu'elle ne s'échappe..."></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+              <button class="btn-dark" id="quick-save-btn">Noter</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>À faire</h3>
+            <div id="dash-todo-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WRITE -->
+    <section id="view-write" class="view" style="display:none;">
+      <div id="write-empty" class="empty-state">
+        Choisis un chapitre depuis l'onglet <strong>Chapitres</strong> pour commencer à écrire.
+      </div>
+      <div id="write-editor" style="display:none;">
+        <div class="editor-header">
+          <input class="title-input" id="editor-title" placeholder="Titre du chapitre">
+          <span class="save-indicator" id="save-indicator">Enregistré</span>
+        </div>
+        <div class="editor-meta-row">
+          <span id="editor-wordcount">0 mots</span>
+          <span>Objectif : <input type="number" id="editor-goal" min="0" step="50"> mots</span>
+          <select id="editor-status" style="padding:5px 8px;border-radius:6px;border:1px solid var(--line);">
+            <option value="draft">Brouillon</option>
+            <option value="in_progress">En cours</option>
+            <option value="done">Terminé</option>
+          </select>
+        </div>
+        <textarea class="editor-body" id="editor-body" placeholder="Il était une fois..."></textarea>
+      </div>
+    </section>
+
+    <!-- CHAPTERS -->
+    <section id="view-chapters" class="view" style="display:none;">
+      <h2 class="page-title">Chapitres</h2>
+      <p class="subtitle">Tous tes brouillons, en un seul endroit.</p>
+      <div style="margin-bottom:18px;">
+        <button class="btn-dark" id="new-chapter-btn">+ Nouveau chapitre</button>
+      </div>
+      <div id="chapters-list"></div>
+    </section>
+
+    <!-- STATS -->
+    <section id="view-stats" class="view" style="display:none;">
+      <h2 class="page-title">Statistiques</h2>
+      <p class="subtitle">Ta régularité, semaine après semaine.</p>
+      <div class="card" style="margin-bottom:20px;">
+        <h3>Assiduité (12 dernières semaines)</h3>
+        <div class="heatmap" id="stats-heatmap"></div>
+        <div class="heatmap-legend">
+          <span>Moins</span>
+          <div class="heatmap-day" style="background:var(--cream-deep)"></div>
+          <div class="heatmap-day" style="background:#b7c6d6"></div>
+          <div class="heatmap-day" style="background:#7C93AC"></div>
+          <div class="heatmap-day" style="background:var(--navy)"></div>
+          <span>Plus</span>
+        </div>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="card"><h3>Mots — 7 jours</h3><div class="stat-num" id="stat-week" style="font-size:28px;color:var(--navy);">0</div></div>
+        <div class="card"><h3>Mots — 30 jours</h3><div class="stat-num" id="stat-month" style="font-size:28px;color:var(--navy);">0</div></div>
+        <div class="card"><h3>Meilleure série</h3><div class="stat-num" id="stat-streak" style="font-size:28px;color:var(--navy);">0 j</div></div>
+      </div>
+    </section>
+
+    <!-- TODO -->
+    <section id="view-todo" class="view" style="display:none;">
+      <h2 class="page-title">À faire</h2>
+      <p class="subtitle">Ce qu'il reste à défricher.</p>
+      <div class="card">
+        <div id="todo-list-full"></div>
+        <div class="add-row">
+          <input id="todo-new-input" placeholder="Ajouter une tâche...">
+          <button id="todo-add-btn">Ajouter</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIGURATION — remplace ces deux valeurs par celles de
+   ton NOUVEAU projet Supabase (Project Settings > API)
+   ========================================================= */
+const SUPABASE_URL = "https://ilhfzulwuuxyidhityoo.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_vg-foLfK6w49T86jk5xaug_4DOxX2-W";
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let chapters = [];
+let todos = [];
+let sessions = []; // {date, words_written}
+let dailyGoal = 500;
+let activeChapterId = null;
+let saveTimer = null;
+
+/* ---------- AUTH ---------- */
+let authMode = 'login';
+document.getElementById('auth-toggle-btn').addEventListener('click', () => {
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  document.getElementById('auth-submit').textContent = authMode === 'login' ? 'Entrer' : 'Créer mon compte';
+  document.getElementById('auth-toggle-text').textContent = authMode === 'login' ? "Pas encore de compte ?" : "Déjà un compte ?";
+  document.getElementById('auth-toggle-btn').textContent = authMode === 'login' ? "Créer un compte" : "Se connecter";
+  document.getElementById('auth-error').textContent = '';
+});
+
+document.getElementById('auth-submit').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-pass').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  if(!email || !password){ errEl.textContent = "Renseigne un email et un mot de passe."; return; }
+
+  const { data, error } = authMode === 'login'
+    ? await sb.auth.signInWithPassword({ email, password })
+    : await sb.auth.signUp({ email, password });
+
+  if(error){ errEl.textContent = error.message; return; }
+  if(authMode === 'signup' && !data.session){
+    errEl.style.color = '#3a6b4a';
+    errEl.textContent = "Compte créé. Vérifie tes emails pour confirmer, puis connecte-toi.";
+    return;
+  }
+  await onAuthSuccess(data.session.user);
+});
+
+sb.auth.onAuthStateChange((event, session) => {
+  if(session && !currentUser) onAuthSuccess(session.user);
+});
+
+async function onAuthSuccess(user){
+  currentUser = user;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  const hour = new Date().getHours();
+  document.getElementById('greeting').textContent =
+    hour < 12 ? "Bonjour, écrivaine." : hour < 18 ? "Bel après-midi d'écriture." : "Bonne soirée, écrivaine.";
+  await loadEverything();
+}
+
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  location.reload();
+});
+
+/* ---------- NAVIGATION ---------- */
+document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+function switchView(view){
+  document.querySelectorAll('.nav-item[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+  document.getElementById('view-' + view).style.display = 'block';
+  if(view === 'stats') renderStats();
+}
+
+/* ---------- DATA LOADING ---------- */
+async function loadEverything(){
+  await Promise.all([loadChapters(), loadTodos(), loadSessions(), loadSettings()]);
+  renderDashboard();
+  renderChaptersList();
+  renderTodoLists();
+}
+
+async function loadChapters(){
+  const { data, error } = await sb.from('chapters').select('*').order('order_index', { ascending: true });
+  if(!error) chapters = data || [];
+}
+async function loadTodos(){
+  const { data, error } = await sb.from('todos').select('*').order('created_at', { ascending: true });
+  if(!error) todos = data || [];
+}
+async function loadSessions(){
+  const since = new Date(); since.setDate(since.getDate() - 84);
+  const { data, error } = await sb.from('writing_sessions').select('*').gte('date', since.toISOString().slice(0,10));
+  if(!error) sessions = data || [];
+}
+async function loadSettings(){
+  const { data } = await sb.from('settings').select('*').eq('user_id', currentUser.id).maybeSingle();
+  if(data){ dailyGoal = data.daily_word_goal; }
+  else{
+    await sb.from('settings').insert({ user_id: currentUser.id, daily_word_goal: 500 });
+    dailyGoal = 500;
+  }
+}
+
+function wordCount(text){
+  if(!text) return 0;
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+/* ---------- DASHBOARD ---------- */
+function renderDashboard(){
+  const todayWords = sessions.filter(s => s.date === todayStr()).reduce((a,s) => a + Math.max(0, s.words_written), 0);
+  const pct = Math.min(100, Math.round((todayWords / dailyGoal) * 100));
+  document.getElementById('today-words').textContent = todayWords;
+  document.getElementById('today-goal').textContent = dailyGoal;
+  document.getElementById('today-pct').textContent = pct + '%';
+  document.getElementById('moon-fill').style.height = pct + '%';
+
+  const container = document.getElementById('chapter-preview-content');
+  const current = chapters.find(c => c.id === activeChapterId) || chapters[chapters.length - 1];
+  if(!current){
+    container.innerHTML = '<p class="empty-state" style="padding:10px 0;">Aucun chapitre pour le moment.</p>';
+  } else {
+    const wc = wordCount(current.content);
+    const goal = current.word_goal || 1;
+    const p = Math.min(100, Math.round((wc / goal) * 100));
+    container.innerHTML = `
+      <p class="cp-title">${escapeHtml(current.title || 'Sans titre')}</p>
+      <p class="cp-meta">${wc.toLocaleString('fr-FR')} / ${current.word_goal.toLocaleString('fr-FR')} mots</p>
+      <div class="progress-bar"><div class="progress-bar-fill" style="width:${p}%"></div></div>
+      <p class="cp-meta" style="margin:8px 0 12px;">${p}%</p>
+      <button class="btn-ghost" onclick="openChapterInEditor('${current.id}')">Continuer l'écriture</button>
+    `;
+  }
+  renderDashTodo();
+}
+
+function renderDashTodo(){
+  const list = document.getElementById('dash-todo-list');
+  const pending = todos.filter(t => !t.done).slice(0, 5);
+  if(pending.length === 0){
+    list.innerHTML = '<p class="empty-state" style="padding:6px 0;">Rien en attente.</p>';
+    return;
+  }
+  list.innerHTML = pending.map(t => `
+    <div class="todo-row ${t.done ? 'done':''}">
+      <input type="checkbox" ${t.done ? 'checked':''} onchange="toggleTodo('${t.id}', this.checked)">
+      <span>${escapeHtml(t.text)}</span>
+    </div>
+  `).join('');
+}
+
+document.getElementById('quick-save-btn').addEventListener('click', async () => {
+  const input = document.getElementById('quick-input');
+  const text = input.value.trim();
+  if(!text) return;
+  const { data, error } = await sb.from('todos').insert({ user_id: currentUser.id, text, done:false }).select().single();
+  if(!error){ todos.push(data); input.value=''; renderTodoLists(); renderDashTodo(); }
+});
+
+/* ---------- TODO ---------- */
+function renderTodoLists(){
+  const full = document.getElementById('todo-list-full');
+  if(todos.length === 0){
+    full.innerHTML = '<p class="empty-state" style="padding:6px 0;">Aucune tâche pour l\\'instant.</p>';
+  } else {
+    full.innerHTML = todos.map(t => `
+      <div class="todo-row ${t.done ? 'done':''}">
+        <input type="checkbox" ${t.done ? 'checked':''} onchange="toggleTodo('${t.id}', this.checked)">
+        <span>${escapeHtml(t.text)}</span>
+        <button class="del" onclick="deleteTodo('${t.id}')">✕</button>
+      </div>
+    `).join('');
+  }
+  renderDashTodo();
+}
+async function toggleTodo(id, done){
+  await sb.from('todos').update({ done }).eq('id', id);
+  const t = todos.find(t => t.id === id); if(t) t.done = done;
+  renderTodoLists();
+}
+async function deleteTodo(id){
+  await sb.from('todos').delete().eq('id', id);
+  todos = todos.filter(t => t.id !== id);
+  renderTodoLists();
+}
+document.getElementById('todo-add-btn').addEventListener('click', addTodoFromInput);
+document.getElementById('todo-new-input').addEventListener('keydown', e => { if(e.key === 'Enter') addTodoFromInput(); });
+async function addTodoFromInput(){
+  const input = document.getElementById('todo-new-input');
+  const text = input.value.trim();
+  if(!text) return;
+  const { data, error } = await sb.from('todos').insert({ user_id: currentUser.id, text, done:false }).select().single();
+  if(!error){ todos.push(data); input.value=''; renderTodoLists(); }
+}
+
+/* ---------- CHAPTERS ---------- */
+function renderChaptersList(){
+  const list = document.getElementById('chapters-list');
+  if(chapters.length === 0){
+    list.innerHTML = '<p class="empty-state">Aucun chapitre. Crée le premier !</p>';
+    return;
+  }
+  list.innerHTML = chapters.map(c => {
+    const wc = wordCount(c.content);
+    const p = Math.min(100, Math.round((wc / (c.word_goal||1)) * 100));
+    const statusLabel = {draft:'Brouillon', in_progress:'En cours', done:'Terminé'}[c.status] || c.status;
+    return `
+      <div class="chapter-card" onclick="openChapterInEditor('${c.id}')">
+        <div style="flex:1;">
+          <p class="ci-title">${escapeHtml(c.title || 'Sans titre')}</p>
+          <p class="ci-meta">${wc.toLocaleString('fr-FR')} / ${c.word_goal.toLocaleString('fr-FR')} mots</p>
+        </div>
+        <div class="ci-bar">
+          <div class="progress-bar"><div class="progress-bar-fill" style="width:${p}%"></div></div>
+        </div>
+        <span class="status-pill">${statusLabel}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('new-chapter-btn').addEventListener('click', async () => {
+  const title = prompt("Titre du nouveau chapitre :", "Chapitre " + (chapters.length + 1));
+  if(!title) return;
+  const { data, error } = await sb.from('chapters').insert({
+    user_id: currentUser.id, title, content:'', word_goal:2000, status:'draft', order_index: chapters.length
+  }).select().single();
+  if(!error){ chapters.push(data); renderChaptersList(); openChapterInEditor(data.id); }
+});
+
+/* ---------- EDITOR ---------- */
+function openChapterInEditor(id){
+  activeChapterId = id;
+  const c = chapters.find(c => c.id === id);
+  if(!c) return;
+  document.getElementById('write-empty').style.display = 'none';
+  document.getElementById('write-editor').style.display = 'block';
+  document.getElementById('editor-title').value = c.title || '';
+  document.getElementById('editor-body').value = c.content || '';
+  document.getElementById('editor-goal').value = c.word_goal || 2000;
+  document.getElementById('editor-status').value = c.status || 'draft';
+  document.getElementById('editor-wordcount').textContent = wordCount(c.content) + ' mots';
+  document.getElementById('save-indicator').textContent = 'Enregistré';
+  switchView('write');
+}
+
+['editor-title','editor-body','editor-goal','editor-status'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById('editor-wordcount').textContent = wordCount(document.getElementById('editor-body').value) + ' mots';
+    document.getElementById('save-indicator').textContent = 'Enregistrement...';
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveActiveChapter, 900);
+  });
+});
+
+async function saveActiveChapter(){
+  if(!activeChapterId) return;
+  const c = chapters.find(c => c.id === activeChapterId);
+  if(!c) return;
+  const newContent = document.getElementById('editor-body').value;
+  const newTitle = document.getElementById('editor-title').value;
+  const newGoal = parseInt(document.getElementById('editor-goal').value) || 0;
+  const newStatus = document.getElementById('editor-status').value;
+  const newWc = wordCount(newContent);
+
+  await sb.from('chapters').update({
+    title: newTitle, content: newContent, word_goal: newGoal, status: newStatus, updated_at: new Date().toISOString()
+  }).eq('id', c.id);
+
+  await logWritingProgress(c.id, c.content, newContent);
+
+  c.title = newTitle; c.content = newContent; c.word_goal = newGoal; c.status = newStatus;
+  document.getElementById('save-indicator').textContent = 'Enregistré';
+  renderChaptersList();
+  renderDashboard();
+}
+
+/* Track words written today per chapter using a baseline snapshot */
+async function logWritingProgress(chapterId, oldContent, newContent){
+  const today = todayStr();
+  const newWc = wordCount(newContent);
+  let existing = sessions.find(s => s.date === today && s.chapter_id === chapterId);
+
+  if(!existing){
+    const baseline = wordCount(oldContent);
+    const delta = newWc - baseline;
+    const { data, error } = await sb.from('writing_sessions')
+      .upsert({ user_id: currentUser.id, date: today, chapter_id: chapterId, words_written: delta }, { onConflict: 'user_id,date,chapter_id' })
+      .select().single();
+    if(!error){ sessions.push(data); }
+  } else {
+    // Add this save's incremental change to the running total already logged today
+    const delta = existing.words_written + (newWc - wordCount(oldContent));
+    const { data, error } = await sb.from('writing_sessions')
+      .update({ words_written: delta })
+      .eq('id', existing.id).select().single();
+    if(!error){ existing.words_written = delta; }
+  }
+}
+
+/* ---------- STATS ---------- */
+function renderStats(){
+  const heatmap = document.getElementById('stats-heatmap');
+  const days = [];
+  const start = new Date(); start.setDate(start.getDate() - 83);
+  // align to Sunday
+  start.setDate(start.getDate() - start.getDay());
+  for(let i=0;i<84;i++){
+    const d = new Date(start); d.setDate(d.getDate()+i);
+    days.push(d.toISOString().slice(0,10));
+  }
+  const byDate = {};
+  sessions.forEach(s => { byDate[s.date] = (byDate[s.date]||0) + Math.max(0,s.words_written); });
+
+  const weeks = [];
+  for(let i=0;i<days.length;i+=7) weeks.push(days.slice(i,i+7));
+
+  heatmap.innerHTML = weeks.map(week => `
+    <div class="heatmap-week">
+      ${week.map(d => {
+        const w = byDate[d] || 0;
+        let color = 'var(--cream-deep)';
+        if(w > 0 && w < 200) color = '#b7c6d6';
+        else if(w >= 200 && w < 600) color = '#7C93AC';
+        else if(w >= 600) color = 'var(--navy)';
+        return `<div class="heatmap-day" style="background:${color}" title="${d} — ${w} mots"></div>`;
+      }).join('')}
+    </div>
+  `).join('');
+
+  const now = new Date();
+  const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate()-7);
+  const monthAgo = new Date(now); monthAgo.setDate(monthAgo.getDate()-30);
+  const weekTotal = sessions.filter(s => new Date(s.date) >= weekAgo).reduce((a,s)=>a+Math.max(0,s.words_written),0);
+  const monthTotal = sessions.filter(s => new Date(s.date) >= monthAgo).reduce((a,s)=>a+Math.max(0,s.words_written),0);
+
+  let streak = 0, cursor = new Date();
+  while(true){
+    const ds = cursor.toISOString().slice(0,10);
+    if((byDate[ds]||0) > 0){ streak++; cursor.setDate(cursor.getDate()-1); } else break;
+  }
+
+  document.getElementById('stat-week').textContent = weekTotal.toLocaleString('fr-FR');
+  document.getElementById('stat-month').textContent = monthTotal.toLocaleString('fr-FR');
+  document.getElementById('stat-streak').textContent = streak + ' j';
+}
+
+/* ---------- UTIL ---------- */
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+/* Restore session on reload */
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if(data.session) await onAuthSuccess(data.session.user);
+})();
+</script>
+</body>
+</html>
