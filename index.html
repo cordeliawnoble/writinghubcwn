@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>L'Atelier — Espace d'écriture</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#170f28">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="L'Atelier">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -219,8 +226,14 @@
   .todo-cal-day{ position:relative; padding:8px 0; border-radius:8px; font-size:13px; color:var(--ink); min-height:34px;}
   .todo-cal-day.other-month{ color:var(--ink-soft); opacity:.35;}
   .todo-cal-day.today{ border:1px solid var(--navy); color:var(--navy); font-weight:600;}
-  .todo-cal-day .dot{ display:block; width:4px; height:4px; border-radius:50%; background:var(--navy-mist); margin:2px auto 0;}
-  .todo-cal-day.today .dot{ background:var(--navy);}
+  .todo-cal-day .dot-row{ display:flex; gap:3px; justify-content:center; margin-top:3px; }
+  .todo-cal-day .dot{ display:block; width:4px; height:4px; border-radius:50%; margin:0;}
+  .dot-due{ background:var(--ink); }
+  .dot-written{ background:var(--navy); box-shadow:0 0 3px rgba(212,175,55,0.7); }
+  .todo-cal-day.today .dot-due{ background:var(--ink); }
+  .todo-cal-legend{ display:flex; gap:16px; justify-content:center; font-size:11px; color:var(--ink-soft); margin-bottom:10px; }
+  .todo-cal-legend span{ display:flex; align-items:center; gap:5px; }
+  .todo-cal-legend .dot{ position:relative; }
   .add-row{ display:flex; gap:8px; margin-top:12px; }
   .add-row input{ flex:1; padding:9px 12px; border-radius:8px; border:1px solid var(--line); font-family:'Lora',serif; background:var(--panel); color:var(--ink);}
   .add-row button{ padding:9px 16px; border-radius:30px; border:1.5px solid var(--navy); background:transparent; color:var(--navy); font-size:14px;}
@@ -928,8 +941,11 @@ function buildCalendarHtml(){
   base.setMonth(base.getMonth() + calendarMonthOffset);
   const year = base.getFullYear(), month = base.getMonth();
 
-  const dueDates = {}; // 'YYYY-MM-DD' -> count
-  todos.forEach(t => { if(t.due_date) dueDates[t.due_date] = (dueDates[t.due_date]||0) + 1; });
+  const dueDates = {}; // 'YYYY-MM-DD' -> count (tâches à faire)
+  todos.forEach(t => { if(t.due_date && !t.done) dueDates[t.due_date] = (dueDates[t.due_date]||0) + 1; });
+
+  const writingDates = {}; // 'YYYY-MM-DD' -> mots écrits ce jour-là
+  sessions.forEach(s => { if(s.words_written > 0) writingDates[s.date] = (writingDates[s.date]||0) + s.words_written; });
 
   const firstOfMonth = new Date(year, month, 1);
   const startDow = (firstOfMonth.getDay() + 6) % 7; // lundi = 0
@@ -946,7 +962,9 @@ function buildCalendarHtml(){
   for(let d = 1; d <= daysInMonth; d++){
     const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = iso === todayIso;
-    cells += `<div class="todo-cal-day ${isToday ? 'today':''}">${d}${dueDates[iso] ? '<span class="dot"></span>' : ''}</div>`;
+    const dots = (dueDates[iso] ? '<span class="dot dot-due" title="Chapitre/tâche à écrire"></span>' : '')
+      + (writingDates[iso] ? `<span class="dot dot-written" title="${writingDates[iso]} mots écrits"></span>` : '');
+    cells += `<div class="todo-cal-day ${isToday ? 'today':''}">${d}${dots ? `<span class="dot-row">${dots}</span>` : ''}</div>`;
   }
   const totalCells = startDow + daysInMonth;
   const trailing = (7 - (totalCells % 7)) % 7;
@@ -959,6 +977,10 @@ function buildCalendarHtml(){
       <button onclick="calendarMonthOffset--; renderTodoCalendar();">‹</button>
       <span class="todo-cal-month">${monthLabel}</span>
       <button onclick="calendarMonthOffset++; renderTodoCalendar();">›</button>
+    </div>
+    <div class="todo-cal-legend">
+      <span><span class="dot dot-due"></span> À écrire</span>
+      <span><span class="dot dot-written"></span> Écrit</span>
     </div>
     <div class="todo-cal-grid">
       ${DOW_LABELS.map(d => `<div class="todo-cal-dow">${d}</div>`).join('')}
@@ -1614,6 +1636,13 @@ function escapeHtml(str){
   const { data } = await sb.auth.getSession();
   if(data.session) await onAuthSuccess(data.session.user);
 })();
+
+/* Enregistrement du service worker (nécessaire pour l'installation en app) */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
