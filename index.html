@@ -195,6 +195,21 @@
 
   .empty-state{ text-align:center; padding:50px 20px; color:var(--ink-soft); font-style:italic;}
 
+  /* projects */
+  .project-card{ background:#fff; border-radius:var(--radius); padding:20px 24px; margin-bottom:16px; border:1px solid var(--line); box-shadow:var(--shadow);}
+  .project-card .pj-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .project-card h3{ margin:0; font-size:20px; color:var(--navy);}
+  .project-card .pj-links{ font-size:12px; color:var(--ink-soft); margin-bottom:14px;}
+  .pj-two-col{ display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:14px;}
+  .pj-block h4{ font-size:14px; color:var(--navy); margin:0 0 8px; text-transform:uppercase; letter-spacing:.04em;}
+  .pj-item{ display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:14px;}
+  .pj-item:last-child{ border-bottom:none;}
+  .pj-item .pj-etat{ font-size:11px; padding:2px 8px; border-radius:20px; background:var(--cream-deep); color:var(--navy);}
+  .pj-item.pj-done span{ text-decoration:line-through; color:var(--ink-soft);}
+  .pj-config{ font-size:13px; color:var(--ink-soft); margin-bottom:10px;}
+  .pj-config input{ width:100%; padding:7px 10px; border-radius:7px; border:1px solid var(--line); font-family:'Lora',serif; font-size:13px; margin-bottom:8px;}
+  .pj-sync-status{ font-size:12px; color:var(--ink-soft); font-style:italic; margin-left:10px;}
+
   @media (max-width: 860px){
     #app.active{ flex-direction:column; }
     .sidebar{ width:100%; height:auto; position:relative; flex-direction:row; overflow-x:auto; padding:14px;}
@@ -238,6 +253,7 @@
     <button class="nav-item active" data-view="dashboard"><span class="dot"></span>Tableau de bord</button>
     <button class="nav-item" data-view="write"><span class="dot"></span>Écriture</button>
     <button class="nav-item" data-view="chapters"><span class="dot"></span>Chapitres</button>
+    <button class="nav-item" data-view="projects"><span class="dot"></span>Projets</button>
     <button class="nav-item" data-view="stats"><span class="dot"></span>Statistiques</button>
     <button class="nav-item" data-view="todo"><span class="dot"></span>À faire</button>
     <div class="sidebar-footer">
@@ -318,6 +334,16 @@
       <div id="chapters-list"></div>
     </section>
 
+    <!-- PROJECTS -->
+    <section id="view-projects" class="view" style="display:none;">
+      <h2 class="page-title">Projets</h2>
+      <p class="subtitle">Chaque œuvre, reliée à son plan et ses tâches Notion.</p>
+      <div style="margin-bottom:18px;">
+        <button class="btn-dark" id="new-project-btn">+ Nouveau projet</button>
+      </div>
+      <div id="projects-list"></div>
+    </section>
+
     <!-- STATS -->
     <section id="view-stats" class="view" style="display:none;">
       <h2 class="page-title">Statistiques</h2>
@@ -365,11 +391,13 @@ const SUPABASE_URL = "https://ilhfzulwuuxyidhityoo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_vg-foLfK6w49T86jk5xaug_4DOxX2-W";
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const NOTION_PROXY_URL = SUPABASE_URL + "/functions/v1/notion-proxy";
 
 let currentUser = null;
 let chapters = [];
 let todos = [];
 let sessions = []; // {date, words_written}
+let projects = [];
 let dailyGoal = 500;
 let activeChapterId = null;
 let saveTimer = null;
@@ -436,10 +464,16 @@ function switchView(view){
 
 /* ---------- DATA LOADING ---------- */
 async function loadEverything(){
-  await Promise.all([loadChapters(), loadTodos(), loadSessions(), loadSettings()]);
+  await Promise.all([loadChapters(), loadTodos(), loadSessions(), loadSettings(), loadProjects()]);
   renderDashboard();
   renderChaptersList();
   renderTodoLists();
+  renderProjectsList();
+}
+
+async function loadProjects(){
+  const { data, error } = await sb.from('projects').select('*').order('created_at', { ascending: true });
+  if(!error) projects = data || [];
 }
 
 async function loadChapters(){
@@ -660,6 +694,114 @@ async function logWritingProgress(chapterId, oldContent, newContent){
       .eq('id', existing.id).select().single();
     if(!error){ existing.words_written = delta; }
   }
+}
+
+/* ---------- PROJECTS ---------- */
+function renderProjectsList(){
+  const list = document.getElementById('projects-list');
+  if(projects.length === 0){
+    list.innerHTML = '<p class="empty-state">Aucun projet. Crée le premier pour le relier à Notion !</p>';
+    return;
+  }
+  list.innerHTML = projects.map(p => `
+    <div class="project-card" id="pj-card-${p.id}">
+      <div class="pj-head">
+        <h3>${escapeHtml(p.name)}</h3>
+        <div>
+          <button class="btn-ghost" onclick="syncProjectFromNotion('${p.id}')">Actualiser depuis Notion</button>
+          <span class="pj-sync-status" id="pj-status-${p.id}"></span>
+        </div>
+      </div>
+      <div class="pj-links">${p.notion_plan_db_id ? 'Base plan liée' : 'Base plan non configurée'} · ${p.notion_project_value ? 'Filtre to-do : ' + escapeHtml(p.notion_project_value) : 'Filtre to-do non configuré'}</div>
+
+      <details>
+        <summary style="cursor:pointer; font-size:13px; color:var(--navy-mist);">Configurer le lien Notion</summary>
+        <div class="pj-config" style="margin-top:10px;">
+          <label>ID de la base Notion "plan" (dans l'URL de la base)</label>
+          <input type="text" id="pj-plan-${p.id}" value="${escapeHtml(p.notion_plan_db_id || '')}" placeholder="ex: 1a2b3c4d5e6f...">
+          <label>ID de la base Notion "Todum"</label>
+          <input type="text" id="pj-tododb-${p.id}" value="${escapeHtml(p.notion_todo_db_id || '')}" placeholder="ex: 7g8h9i0j...">
+          <label>Valeur exacte de la colonne "Projet" dans Todum pour cette œuvre</label>
+          <input type="text" id="pj-value-${p.id}" value="${escapeHtml(p.notion_project_value || '')}" placeholder="ex: Campus North">
+          <button class="btn-dark" onclick="saveProjectNotionConfig('${p.id}')">Enregistrer</button>
+        </div>
+      </details>
+
+      <div class="pj-two-col">
+        <div class="pj-block">
+          <h4>Plan de l'œuvre</h4>
+          <div id="pj-plan-list-${p.id}"><p class="empty-state" style="padding:6px 0;">Clique "Actualiser depuis Notion".</p></div>
+        </div>
+        <div class="pj-block">
+          <h4>Tâches de rédaction</h4>
+          <div id="pj-todo-list-${p.id}"><p class="empty-state" style="padding:6px 0;">Clique "Actualiser depuis Notion".</p></div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('new-project-btn').addEventListener('click', async () => {
+  const name = prompt("Nom du projet (ex : Campus North) :");
+  if(!name) return;
+  const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name }).select().single();
+  if(!error){ projects.push(data); renderProjectsList(); }
+});
+
+async function saveProjectNotionConfig(id){
+  const plan = document.getElementById('pj-plan-' + id).value.trim();
+  const tododb = document.getElementById('pj-tododb-' + id).value.trim();
+  const value = document.getElementById('pj-value-' + id).value.trim();
+  await sb.from('projects').update({
+    notion_plan_db_id: plan, notion_todo_db_id: tododb, notion_project_value: value
+  }).eq('id', id);
+  const p = projects.find(p => p.id === id);
+  if(p){ p.notion_plan_db_id = plan; p.notion_todo_db_id = tododb; p.notion_project_value = value; }
+  renderProjectsList();
+}
+
+async function syncProjectFromNotion(id){
+  const p = projects.find(p => p.id === id);
+  if(!p) return;
+  const statusEl = document.getElementById('pj-status-' + id);
+  if(!p.notion_plan_db_id && !p.notion_todo_db_id){
+    statusEl.textContent = 'Configure d\u2019abord le lien Notion (ci-dessus).';
+    return;
+  }
+  statusEl.textContent = 'Actualisation...';
+  const { data: { session } } = await sb.auth.getSession();
+  const accessToken = session.access_token;
+
+  try{
+    if(p.notion_plan_db_id){
+      const planItems = await callNotionProxy(accessToken, { action:'get_plan', database_id: p.notion_plan_db_id });
+      const planEl = document.getElementById('pj-plan-list-' + id);
+      planEl.innerHTML = planItems.length === 0
+        ? '<p class="empty-state" style="padding:6px 0;">Rien trouvé dans cette base.</p>'
+        : planItems.map(it => `<div class="pj-item"><span>${escapeHtml(it.title)}</span>${it.etat ? `<span class="pj-etat">${escapeHtml(it.etat)}</span>` : ''}</div>`).join('');
+    }
+    if(p.notion_todo_db_id && p.notion_project_value){
+      const todoItems = await callNotionProxy(accessToken, { action:'get_todos', database_id: p.notion_todo_db_id, project_value: p.notion_project_value });
+      const todoEl = document.getElementById('pj-todo-list-' + id);
+      todoEl.innerHTML = todoItems.length === 0
+        ? '<p class="empty-state" style="padding:6px 0;">Rien trouvé pour ce filtre.</p>'
+        : todoItems.map(it => `<div class="pj-item ${it.done ? 'pj-done':''}"><span>${escapeHtml(it.title)}</span></div>`).join('');
+    }
+    statusEl.textContent = 'Actualisé à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+  } catch(e){
+    statusEl.textContent = 'Erreur : ' + e.message;
+  }
+}
+
+async function callNotionProxy(accessToken, body){
+  const res = await fetch(NOTION_PROXY_URL, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const json = await res.json();
+  if(!res.ok) throw new Error(json.error || 'Erreur inconnue');
+  return json.items || [];
 }
 
 /* ---------- STATS ---------- */
