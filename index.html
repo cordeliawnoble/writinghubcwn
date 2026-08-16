@@ -171,7 +171,7 @@
   .bar-chart-labels span{ flex:1; text-align:center; font-size:9px; color:var(--ink-soft); }
 
   /* image de couverture chapitre */
-  .cp-cover{ width:100%; height:140px; object-fit:cover; border-radius:12px; margin-bottom:12px; background:var(--panel);}
+  .cp-cover{ width:100%; height:170px; object-fit:contain; border-radius:12px; margin-bottom:12px; background:var(--panel);}
 
   /* moon goal widget */
   .moon-goal{ display:flex; align-items:center; gap:20px; }
@@ -359,10 +359,8 @@
     </div>
     <div class="brand"><div class="moon-mini"></div><span>L'Atelier</span></div>
     <button class="nav-item active" data-view="dashboard"><span class="dot"></span>Tableau de bord</button>
-    <button class="nav-item" data-view="chapters"><span class="dot"></span>Chapitres</button>
     <button class="nav-item" data-view="projects"><span class="dot"></span>Projets</button>
     <button class="nav-item" data-view="stats"><span class="dot"></span>Statistiques</button>
-    <button class="nav-item" data-view="todo"><span class="dot"></span>À faire</button>
     <button class="nav-item" data-view="appearance"><span class="dot"></span>Apparence</button>
     <div class="sidebar-footer">
       <button id="logout-btn">Se déconnecter</button>
@@ -424,16 +422,6 @@
       </div>
     </section>
 
-    <!-- CHAPTERS -->
-    <section id="view-chapters" class="view" style="display:none;">
-      <h2 class="page-title">Chapitres</h2>
-      <p class="subtitle">Tous tes brouillons, en un seul endroit.</p>
-      <div style="margin-bottom:18px;">
-        <button class="btn-dark" id="new-chapter-btn">+ Nouveau chapitre</button>
-      </div>
-      <div id="chapters-list"></div>
-    </section>
-
     <!-- PROJECTS -->
     <section id="view-projects" class="view" style="display:none;">
       <h2 class="page-title">Projets</h2>
@@ -465,20 +453,6 @@
         <div class="card"><h3>Mots — 30 jours</h3><div class="stat-num" id="stat-month" style="font-size:28px;color:var(--navy);">0</div></div>
         <div class="card"><h3>Meilleure série</h3><div class="stat-num" id="stat-streak" style="font-size:28px;color:var(--navy);">0 j</div></div>
       </div>
-    </section>
-
-    <!-- TODO -->
-    <section id="view-todo" class="view" style="display:none;">
-      <h2 class="page-title">À faire</h2>
-      <p class="subtitle">Ce qu'il reste à défricher.</p>
-      <div class="card">
-        <div id="todo-list-full"></div>
-        <div class="add-row">
-          <input id="todo-new-input" placeholder="Ajouter une tâche...">
-          <button id="todo-add-btn">Ajouter</button>
-        </div>
-      </div>
-      <div class="todo-calendar" id="todo-calendar"></div>
     </section>
 
     <!-- APPEARANCE -->
@@ -655,7 +629,6 @@ async function loadEverything(){
   await Promise.all([loadChapters(), loadTodos(), loadSessions(), loadSettings(), loadProjects()]);
   applyBanner();
   renderDashboard();
-  renderChaptersList();
   renderTodoLists();
   renderProjectsList();
   renderAppearancePage();
@@ -904,13 +877,22 @@ function renderDashboard(){
     const p = Math.min(100, Math.round((wc / goal) * 100));
     const currentProject = projects.find(pr => pr.id === current.project_id);
     const coverUrl = (currentProject && currentProject.cover_image_url) || current.cover_image_url;
+    const statusLabel = {draft:'Brouillon', in_progress:'En cours', done:'Terminé'}[current.status] || current.status;
     container.innerHTML = projectSelect + chapterSelect +
       (coverUrl ? `<img class="cp-cover" src="${escapeHtml(coverUrl)}" alt="">` : '') + `
       <p class="cp-title">${escapeHtml(current.title || 'Sans titre')}</p>
-      <p class="cp-meta">${wc.toLocaleString('fr-FR')} / ${current.word_goal.toLocaleString('fr-FR')} mots</p>
+      <p class="cp-meta" style="margin-bottom:8px;">${statusLabel}</p>
+      <div class="ci-numbers" style="margin-bottom:8px;">
+        <input type="number" min="0" step="50" value="${wc}" title="Mots écrits" style="width:80px;"
+          onchange="updateChapterWordCount('${current.id}', this.value)">
+        <span>/</span>
+        <input type="number" min="0" step="50" value="${current.word_goal || 0}" title="Objectif de mots" style="width:80px;"
+          onchange="updateChapterGoal('${current.id}', this.value)">
+        <span>mots</span>
+      </div>
       <div class="progress-bar"><div class="progress-bar-fill" style="width:${p}%"></div></div>
       <p class="cp-meta" style="margin:8px 0 12px;">${p}%</p>
-      <button class="btn-ghost" onclick="switchView('chapters')">Voir mes chapitres</button>
+      <button class="btn-ghost" onclick="deleteChapter('${current.id}')">Supprimer ce chapitre</button>
     `;
   }
   renderDashTodo();
@@ -938,7 +920,7 @@ function formatDueDate(dateStr){
 /* ---------- CALENDRIER DES ÉCHÉANCES ---------- */
 let calendarMonthOffset = 0;
 const DOW_LABELS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-const CALENDAR_TARGET_IDS = ['todo-calendar', 'dash-todo-calendar'];
+const CALENDAR_TARGET_IDS = ['dash-todo-calendar'];
 
 function buildCalendarHtml(){
   const base = new Date();
@@ -1032,20 +1014,6 @@ function renderDashTodo(){
 
 /* ---------- TODO ---------- */
 function renderTodoLists(){
-  const full = document.getElementById('todo-list-full');
-  const sorted = sortByDueDate(todos);
-  if(sorted.length === 0){
-    full.innerHTML = '<p class="empty-state" style="padding:6px 0;">Aucune tâche pour l’instant.</p>';
-  } else {
-    full.innerHTML = sorted.map(t => `
-      <div class="todo-row ${t.done ? 'done':''}">
-        <input type="checkbox" ${t.done ? 'checked':''} onchange="toggleTodo('${t.id}', this.checked)">
-        <span>${escapeHtml(t.text)}</span>
-        ${t.due_date ? `<span class="todo-due">Éch. ${formatDueDate(t.due_date)}</span>` : ''}
-        <button class="del" onclick="deleteTodo('${t.id}')">✕</button>
-      </div>
-    `).join('');
-  }
   renderDashTodo();
   renderTodoCalendar();
 }
@@ -1053,20 +1021,12 @@ async function toggleTodo(id, done){
   await sb.from('todos').update({ done }).eq('id', id);
   const t = todos.find(t => t.id === id); if(t) t.done = done;
   renderTodoLists();
+  renderProjectsList();
 }
 async function deleteTodo(id){
   await sb.from('todos').delete().eq('id', id);
   todos = todos.filter(t => t.id !== id);
   renderTodoLists();
-}
-document.getElementById('todo-add-btn').addEventListener('click', addTodoFromInput);
-document.getElementById('todo-new-input').addEventListener('keydown', e => { if(e.key === 'Enter') addTodoFromInput(); });
-async function addTodoFromInput(){
-  const input = document.getElementById('todo-new-input');
-  const text = input.value.trim();
-  if(!text) return;
-  const { data, error } = await sb.from('todos').insert({ user_id: currentUser.id, text, done:false }).select().single();
-  if(!error){ todos.push(data); input.value=''; renderTodoLists(); }
 }
 
 /* ---------- CHAPTERS ---------- */
@@ -1099,60 +1059,50 @@ function renderSingleChapterCard(c){
   `;
 }
 
-function toggleChapterGroup(key){
-  expandedChapterGroups[key] = !(expandedChapterGroups[key] !== false);
-  renderChaptersList();
-}
-
-function renderChaptersList(){
-  const list = document.getElementById('chapters-list');
-  if(chapters.length === 0){
-    list.innerHTML = '<p class="empty-state">Aucun chapitre. Crée le premier !</p>';
-    return;
-  }
-
-  // groupes : un par projet (dans l'ordre de création), puis "Sans projet"
-  const groups = [];
-  projects.forEach(p => {
-    const groupChapters = chapters.filter(c => c.project_id === p.id)
-      .slice().sort((a,b) => extractChapterNumber(a.title) - extractChapterNumber(b.title));
-    if(groupChapters.length > 0) groups.push({ key: p.id, label: p.name, chapters: groupChapters });
-  });
-  const noProjectChapters = chapters.filter(c => !c.project_id)
-    .slice().sort((a,b) => (a.order_index||0) - (b.order_index||0));
-  if(noProjectChapters.length > 0) groups.push({ key: 'none', label: 'Sans projet', chapters: noProjectChapters });
-
-  list.innerHTML = groups.map(g => {
-    const isOpen = expandedChapterGroups[g.key] !== false; // ouvert par défaut
-    return `
-      <div style="margin-bottom:18px;">
-        <button onclick="toggleChapterGroup('${g.key}')" style="background:none;border:none;display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0;width:100%;text-align:left;">
-          <span class="pj-toggle" style="padding:0;">${isOpen ? '▾' : '▸'}</span>
-          <h3 style="margin:0;">${escapeHtml(g.label)}</h3>
-          <span style="font-size:12px;color:var(--ink-soft);margin-left:4px;">(${g.chapters.length})</span>
-        </button>
-        <div style="${isOpen ? '' : 'display:none;'}">
-          ${g.chapters.map(c => renderSingleChapterCard(c)).join('')}
-        </div>
+/* ---------- CHAPTERS (édition inline, via Dashboard et Projets) ---------- */
+function renderSingleChapterCard(c){
+  const wc = c.word_count || 0;
+  const p = Math.min(100, Math.round((wc / (c.word_goal||1)) * 100));
+  return `
+    <div class="chapter-card" id="chapter-card-${c.id}">
+      <p class="ci-title">${escapeHtml(c.title || 'Sans titre')}</p>
+      <div class="ci-numbers">
+        <input type="number" min="0" step="50" value="${wc}" title="Mots écrits"
+          onchange="updateChapterWordCount('${c.id}', this.value)">
+        <span>/</span>
+        <input type="number" min="0" step="50" value="${c.word_goal || 0}" title="Objectif de mots"
+          onchange="updateChapterGoal('${c.id}', this.value)">
+        <span>mots</span>
       </div>
-    `;
-  }).join('');
+      <div class="ci-bar">
+        <div class="progress-bar"><div class="progress-bar-fill" id="chapter-bar-${c.id}" style="width:${p}%"></div></div>
+      </div>
+      <select class="ci-numbers" onchange="updateChapterStatus('${c.id}', this.value)">
+        <option value="draft" ${c.status==='draft'?'selected':''}>Brouillon</option>
+        <option value="in_progress" ${c.status==='in_progress'?'selected':''}>En cours</option>
+        <option value="done" ${c.status==='done'?'selected':''}>Terminé</option>
+      </select>
+      <button class="del" onclick="deleteChapter('${c.id}')" title="Supprimer" style="background:none;border:none;color:var(--ink-soft);font-size:16px;">✕</button>
+    </div>
+  `;
 }
 
-document.getElementById('new-chapter-btn').addEventListener('click', async () => {
-  const title = prompt("Titre du nouveau chapitre :", "Chapitre " + (chapters.length + 1));
+async function createChapterForProject(projectId){
+  const count = chapters.filter(c => projectId ? c.project_id === projectId : !c.project_id).length;
+  const title = prompt("Titre du nouveau chapitre :", "Chapitre " + (count + 1));
   if(!title) return;
   const { data, error } = await sb.from('chapters').insert({
-    user_id: currentUser.id, title, word_count:0, word_goal:2000, status:'draft', order_index: chapters.length
+    user_id: currentUser.id, project_id: projectId || null, title, word_count:0, word_goal:2000, status:'draft', order_index: count
   }).select().single();
-  if(!error){ chapters.push(data); renderChaptersList(); renderDashboard(); }
-});
+  if(!error){ chapters.push(data); renderProjectsList(); renderDashboard(); }
+}
 
 async function deleteChapter(id){
   if(!confirm("Supprimer ce chapitre ?")) return;
   await sb.from('chapters').delete().eq('id', id);
   chapters = chapters.filter(c => c.id !== id);
-  renderChaptersList(); renderProjectsList(); renderDashboard();
+  if(activeChapterId === id) activeChapterId = null;
+  renderProjectsList(); renderDashboard();
 }
 
 async function updateChapterWordCount(id, value){
@@ -1175,8 +1125,8 @@ async function updateChapterGoal(id, value){
   await sb.from('chapters').update({ word_goal: newGoal }).eq('id', id);
   const c = chapters.find(c => c.id === id);
   if(c) c.word_goal = newGoal;
-  renderChaptersList();
   renderDashboard();
+  renderProjectsList();
 }
 
 async function updateChapterStatus(id, status){
@@ -1356,7 +1306,7 @@ function renderProjectsList(){
 
       <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
         ${p.cover_image_url
-          ? `<img src="${escapeHtml(p.cover_image_url)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`
+          ? `<img src="${escapeHtml(p.cover_image_url)}" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:8px;border:1px solid var(--line);background:var(--panel);">`
           : `<div style="width:56px;height:56px;border-radius:8px;border:1px solid var(--line);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:18px;">🖼️</div>`}
         <label class="banner-rule-upload-btn">
           ${p.cover_image_url ? 'Changer la couverture' : 'Ajouter une couverture'}
@@ -1396,6 +1346,7 @@ function renderProjectsList(){
           <div class="pj-block">
             <h4>Chapitres (plan)</h4>
             <div id="pj-plan-list-${p.id}">${renderProjectChaptersList(projectChapters)}</div>
+            <button class="btn-ghost" style="margin-top:8px; font-size:12px; padding:6px 12px;" onclick="createChapterForProject('${p.id}')">+ Nouveau chapitre</button>
           </div>
           <div class="pj-block">
             <h4>Tâches de rédaction</h4>
@@ -1418,17 +1369,38 @@ function notionPageUrl(pageId){
 }
 
 function openChapterAndNotion(chapterId, notionPageId){
-  switchView('chapters');
-  const card = document.getElementById('chapter-card-' + chapterId);
-  if(card){ card.scrollIntoView({ behavior:'smooth', block:'center' }); card.style.boxShadow = '0 0 0 2px var(--navy-mist)'; setTimeout(() => card.style.boxShadow = '', 1500); }
+  setCurrentChapter(chapterId);
+  switchView('dashboard');
   if(notionPageId) window.open(notionPageUrl(notionPageId), '_blank');
 }
 
 function renderProjectChaptersList(list){
   if(!list || list.length === 0) return '<p class="empty-state" style="padding:6px 0;">Aucun chapitre importé pour le moment.</p>';
   return list.map(c => {
-    const statusLabel = {draft:'Brouillon', in_progress:'En cours', done:'Terminé'}[c.status] || c.status;
-    return `<div class="pj-item" onclick="openChapterAndNotion('${c.id}', ${c.notion_page_id ? `'${c.notion_page_id}'` : 'null'})"><span>${escapeHtml(c.title)}</span><span class="pj-etat">${statusLabel}</span></div>`;
+    const wc = c.word_count || 0;
+    const p = Math.min(100, Math.round((wc / (c.word_goal||1)) * 100));
+    return `
+      <div class="chapter-card" id="chapter-card-${c.id}" style="margin-bottom:8px;">
+        <p class="ci-title" style="cursor:pointer;" onclick="openChapterAndNotion('${c.id}', ${c.notion_page_id ? `'${c.notion_page_id}'` : 'null'})" title="Ouvrir sur le dashboard + Notion">${escapeHtml(c.title)}</p>
+        <div class="ci-numbers">
+          <input type="number" min="0" step="50" value="${wc}" title="Mots écrits"
+            onchange="updateChapterWordCount('${c.id}', this.value)">
+          <span>/</span>
+          <input type="number" min="0" step="50" value="${c.word_goal || 0}" title="Objectif de mots"
+            onchange="updateChapterGoal('${c.id}', this.value)">
+          <span>mots</span>
+        </div>
+        <div class="ci-bar">
+          <div class="progress-bar"><div class="progress-bar-fill" id="chapter-bar-${c.id}" style="width:${p}%"></div></div>
+        </div>
+        <select class="ci-numbers" onchange="updateChapterStatus('${c.id}', this.value)">
+          <option value="draft" ${c.status==='draft'?'selected':''}>Brouillon</option>
+          <option value="in_progress" ${c.status==='in_progress'?'selected':''}>En cours</option>
+          <option value="done" ${c.status==='done'?'selected':''}>Terminé</option>
+        </select>
+        <button class="del" onclick="deleteChapter('${c.id}')" title="Supprimer" style="background:none;border:none;color:var(--ink-soft);font-size:16px;">✕</button>
+      </div>
+    `;
   }).join('');
 }
 
@@ -1565,7 +1537,6 @@ async function syncProjectFromNotion(id){
 
     statusEl.textContent = `+${importedChapters} chap., +${importedTodos} tâches (maj ${updatedChapters+updatedTodos})`;
     renderProjectsList();
-    renderChaptersList();
     renderTodoLists();
     renderDashboard();
   } catch(e){
