@@ -209,6 +209,9 @@
   .pj-config{ font-size:13px; color:var(--ink-soft); margin-bottom:10px;}
   .pj-config input{ width:100%; padding:7px 10px; border-radius:7px; border:1px solid var(--line); font-family:'Lora',serif; font-size:13px; margin-bottom:8px;}
   .pj-sync-status{ font-size:12px; color:var(--ink-soft); font-style:italic; margin-left:10px;}
+  .pj-toggle{ background:none; border:none; font-size:18px; color:var(--navy); cursor:pointer; padding:0 8px 0 0; line-height:1;}
+  .pj-item{ cursor:pointer; }
+  .pj-item input[type=checkbox]{ margin-right:8px; accent-color:var(--navy); }
 
   @media (max-width: 860px){
     #app.active{ flex-direction:column; }
@@ -697,46 +700,91 @@ async function logWritingProgress(chapterId, oldContent, newContent){
 }
 
 /* ---------- PROJECTS ---------- */
+let expandedProjects = {}; // id -> bool
+
 function renderProjectsList(){
   const list = document.getElementById('projects-list');
   if(projects.length === 0){
     list.innerHTML = '<p class="empty-state">Aucun projet. Crée le premier pour le relier à Notion !</p>';
     return;
   }
-  list.innerHTML = projects.map(p => `
+  list.innerHTML = projects.map(p => {
+    const isOpen = expandedProjects[p.id] !== false; // ouvert par défaut
+    const projectChapters = chapters.filter(c => c.project_id === p.id).slice().sort((a,b) => (a.order_index||0)-(b.order_index||0));
+    return `
     <div class="project-card" id="pj-card-${p.id}">
       <div class="pj-head">
-        <h3>${escapeHtml(p.name)}</h3>
+        <div style="display:flex;align-items:center;">
+          <button class="pj-toggle" onclick="toggleProjectExpanded('${p.id}')">${isOpen ? '▾' : '▸'}</button>
+          <h3>${escapeHtml(p.name)}</h3>
+        </div>
         <div>
           <button class="btn-ghost" onclick="syncProjectFromNotion('${p.id}')">Actualiser depuis Notion</button>
           <span class="pj-sync-status" id="pj-status-${p.id}"></span>
         </div>
       </div>
-      <div class="pj-links">${p.notion_plan_db_id ? 'Base plan liée' : 'Base plan non configurée'} · ${p.notion_project_value ? 'Filtre to-do : ' + escapeHtml(p.notion_project_value) : 'Filtre to-do non configuré'}</div>
+      <div class="pj-links">${p.notion_plan_db_id ? 'Base plan liée' : 'Base plan non configurée'} · ${p.notion_project_value ? 'Filtre to-do : ' + escapeHtml(p.notion_project_value) : 'Filtre to-do non configuré'} · ${projectChapters.length} chapitre(s) importé(s)</div>
 
-      <details>
-        <summary style="cursor:pointer; font-size:13px; color:var(--navy-mist);">Configurer le lien Notion</summary>
-        <div class="pj-config" style="margin-top:10px;">
-          <label>ID de la base Notion "plan" (dans l'URL de la base)</label>
-          <input type="text" id="pj-plan-${p.id}" value="${escapeHtml(p.notion_plan_db_id || '')}" placeholder="ex: 1a2b3c4d5e6f...">
-          <label>ID de la base Notion "Todum"</label>
-          <input type="text" id="pj-tododb-${p.id}" value="${escapeHtml(p.notion_todo_db_id || '')}" placeholder="ex: 7g8h9i0j...">
-          <label>Valeur exacte de la colonne "Projet" dans Todum pour cette œuvre</label>
-          <input type="text" id="pj-value-${p.id}" value="${escapeHtml(p.notion_project_value || '')}" placeholder="ex: Campus North">
-          <button class="btn-dark" onclick="saveProjectNotionConfig('${p.id}')">Enregistrer</button>
-        </div>
-      </details>
+      <div style="${isOpen ? '' : 'display:none;'}">
+        <details>
+          <summary style="cursor:pointer; font-size:13px; color:var(--navy-mist);">Configurer le lien Notion</summary>
+          <div class="pj-config" style="margin-top:10px;">
+            <label>ID de la base Notion "plan" (dans l'URL de la base)</label>
+            <input type="text" id="pj-plan-${p.id}" value="${escapeHtml(p.notion_plan_db_id || '')}" placeholder="ex: 1a2b3c4d5e6f...">
+            <label>ID de la base Notion "Todum"</label>
+            <input type="text" id="pj-tododb-${p.id}" value="${escapeHtml(p.notion_todo_db_id || '')}" placeholder="ex: 7g8h9i0j...">
+            <label>Valeur exacte de la colonne "Projet" dans Todum pour cette œuvre</label>
+            <input type="text" id="pj-value-${p.id}" value="${escapeHtml(p.notion_project_value || '')}" placeholder="ex: Campus North">
+            <button class="btn-dark" onclick="saveProjectNotionConfig('${p.id}')">Enregistrer</button>
+          </div>
+        </details>
 
-      <div class="pj-two-col">
-        <div class="pj-block">
-          <h4>Plan de l'œuvre</h4>
-          <div id="pj-plan-list-${p.id}"><p class="empty-state" style="padding:6px 0;">Clique "Actualiser depuis Notion".</p></div>
-        </div>
-        <div class="pj-block">
-          <h4>Tâches de rédaction</h4>
-          <div id="pj-todo-list-${p.id}"><p class="empty-state" style="padding:6px 0;">Clique "Actualiser depuis Notion".</p></div>
+        <div class="pj-two-col">
+          <div class="pj-block">
+            <h4>Chapitres (plan)</h4>
+            <div id="pj-plan-list-${p.id}">${renderProjectChaptersList(projectChapters)}</div>
+          </div>
+          <div class="pj-block">
+            <h4>Tâches de rédaction</h4>
+            <div id="pj-todo-list-${p.id}">${renderProjectTodosList(p.id)}</div>
+          </div>
         </div>
       </div>
+    </div>
+  `;
+  }).join('');
+}
+
+function toggleProjectExpanded(id){
+  expandedProjects[id] = !(expandedProjects[id] !== false);
+  renderProjectsList();
+}
+
+function notionPageUrl(pageId){
+  return 'https://www.notion.so/' + pageId.replace(/-/g, '');
+}
+
+function openChapterAndNotion(chapterId, notionPageId){
+  openChapterInEditor(chapterId);
+  switchView('write');
+  if(notionPageId) window.open(notionPageUrl(notionPageId), '_blank');
+}
+
+function renderProjectChaptersList(list){
+  if(!list || list.length === 0) return '<p class="empty-state" style="padding:6px 0;">Aucun chapitre importé pour le moment.</p>';
+  return list.map(c => {
+    const statusLabel = {draft:'Brouillon', in_progress:'En cours', done:'Terminé'}[c.status] || c.status;
+    return `<div class="pj-item" onclick="openChapterAndNotion('${c.id}', ${c.notion_page_id ? `'${c.notion_page_id}'` : 'null'})"><span>${escapeHtml(c.title)}</span><span class="pj-etat">${statusLabel}</span></div>`;
+  }).join('');
+}
+
+function renderProjectTodosList(projectId){
+  const list = todos.filter(t => t.project_id === projectId);
+  if(list.length === 0) return '<p class="empty-state" style="padding:6px 0;">Aucune tâche importée pour le moment.</p>';
+  return list.map(t => `
+    <div class="pj-item ${t.done ? 'pj-done':''}">
+      <input type="checkbox" ${t.done ? 'checked':''} onchange="toggleTodo('${t.id}', this.checked)">
+      <span>${escapeHtml(t.text)}</span>
     </div>
   `).join('');
 }
@@ -745,7 +793,7 @@ document.getElementById('new-project-btn').addEventListener('click', async () =>
   const name = prompt("Nom du projet (ex : Campus North) :");
   if(!name) return;
   const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name }).select().single();
-  if(!error){ projects.push(data); renderProjectsList(); }
+  if(!error){ projects.push(data); expandedProjects[data.id] = true; renderProjectsList(); }
 });
 
 async function saveProjectNotionConfig(id){
@@ -758,6 +806,15 @@ async function saveProjectNotionConfig(id){
   const p = projects.find(p => p.id === id);
   if(p){ p.notion_plan_db_id = plan; p.notion_todo_db_id = tododb; p.notion_project_value = value; }
   renderProjectsList();
+}
+
+// Devine un statut de chapitre à partir du texte "Etat" de Notion
+function mapEtatToStatus(etat){
+  if(!etat) return 'draft';
+  const e = etat.toLowerCase();
+  if(e.includes('termin')) return 'done';
+  if(e.includes('cours')) return 'in_progress';
+  return 'draft';
 }
 
 async function syncProjectFromNotion(id){
@@ -773,21 +830,54 @@ async function syncProjectFromNotion(id){
   const accessToken = session.access_token;
 
   try{
+    let importedChapters = 0, updatedChapters = 0, importedTodos = 0, updatedTodos = 0;
+
     if(p.notion_plan_db_id){
       const planItems = await callNotionProxy(accessToken, { action:'get_plan', database_id: p.notion_plan_db_id });
-      const planEl = document.getElementById('pj-plan-list-' + id);
-      planEl.innerHTML = planItems.length === 0
-        ? '<p class="empty-state" style="padding:6px 0;">Rien trouvé dans cette base.</p>'
-        : planItems.map(it => `<div class="pj-item"><span>${escapeHtml(it.title)}</span>${it.etat ? `<span class="pj-etat">${escapeHtml(it.etat)}</span>` : ''}</div>`).join('');
+      for(const [i, item] of planItems.entries()){
+        const existing = chapters.find(c => c.notion_page_id === item.id);
+        const status = mapEtatToStatus(item.etat);
+        if(existing){
+          if(existing.title !== item.title || existing.status !== status){
+            await sb.from('chapters').update({ title: item.title, status }).eq('id', existing.id);
+            existing.title = item.title; existing.status = status;
+            updatedChapters++;
+          }
+        } else {
+          const { data, error } = await sb.from('chapters').insert({
+            user_id: currentUser.id, project_id: p.id, notion_page_id: item.id,
+            title: item.title, content:'', word_goal:2000, status, order_index: i
+          }).select().single();
+          if(!error){ chapters.push(data); importedChapters++; }
+        }
+      }
     }
+
     if(p.notion_todo_db_id && p.notion_project_value){
       const todoItems = await callNotionProxy(accessToken, { action:'get_todos', database_id: p.notion_todo_db_id, project_value: p.notion_project_value });
-      const todoEl = document.getElementById('pj-todo-list-' + id);
-      todoEl.innerHTML = todoItems.length === 0
-        ? '<p class="empty-state" style="padding:6px 0;">Rien trouvé pour ce filtre.</p>'
-        : todoItems.map(it => `<div class="pj-item ${it.done ? 'pj-done':''}"><span>${escapeHtml(it.title)}</span></div>`).join('');
+      for(const item of todoItems){
+        const existing = todos.find(t => t.notion_page_id === item.id);
+        if(existing){
+          if(existing.done !== item.done){
+            await sb.from('todos').update({ done: item.done }).eq('id', existing.id);
+            existing.done = item.done;
+            updatedTodos++;
+          }
+        } else {
+          const { data, error } = await sb.from('todos').insert({
+            user_id: currentUser.id, project_id: p.id, notion_page_id: item.id,
+            text: item.title, done: item.done
+          }).select().single();
+          if(!error){ todos.push(data); importedTodos++; }
+        }
+      }
     }
-    statusEl.textContent = 'Actualisé à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+
+    statusEl.textContent = `+${importedChapters} chap., +${importedTodos} tâches (maj ${updatedChapters+updatedTodos})`;
+    renderProjectsList();
+    renderChaptersList();
+    renderTodoLists();
+    renderDashboard();
   } catch(e){
     statusEl.textContent = 'Erreur : ' + e.message;
   }
