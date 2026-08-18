@@ -494,6 +494,9 @@
       <div class="grid" style="grid-template-columns:1fr 1fr; margin-top:20px;">
         <div class="card">
           <h3>Récap mensuel</h3>
+          <select id="stats-year-filter" onchange="statsYearFilter = this.value; renderMonthlyRecap();" style="width:100%; padding:7px 10px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--ink); margin-bottom:12px;">
+            <option value="all">Toutes les années</option>
+          </select>
           <div id="monthly-recap-list"></div>
           <button class="btn-ghost" style="margin-top:12px;" onclick="addOrEditMonthTotal()">+ Remplir un ancien mois</button>
         </div>
@@ -577,6 +580,7 @@ let chapters = [];
 let todos = [];
 let sessions = []; // {date, words_written}
 let monthlyTotals = []; // {year, month, words_total} — saisis manuellement pour les anciens mois
+let statsYearFilter = 'all';
 let projects = [];
 let dailyGoal = 500;
 let activeChapterId = null;
@@ -1710,14 +1714,28 @@ function renderMonthlyRecap(){
     manual[key] = m.words_total;
   });
 
-  // fusion : tous les mois connus, du plus récent au plus ancien
+  // fusion : tous les mois connus, dans l'ordre chronologique (du plus ancien au plus récent)
   const allKeys = new Set([...Object.keys(computed), ...Object.keys(manual)]);
-  const rows = Array.from(allKeys).sort().reverse().map(key => {
+  const allRows = Array.from(allKeys).sort().map(key => {
     const [year, month] = key.split('-').map(Number);
     const isManual = manual[key] !== undefined;
     const words = isManual ? manual[key] : computed[key];
     return { key, year, month, words, isManual };
   });
+
+  // liste des années disponibles, pour le filtre
+  const yearsAvailable = Array.from(new Set(allRows.map(r => r.year))).sort();
+  const yearSelect = document.getElementById('stats-year-filter');
+  const previousValue = statsYearFilter;
+  yearSelect.innerHTML = '<option value="all">Toutes les années</option>' +
+    yearsAvailable.map(y => `<option value="${y}">${y}</option>`).join('');
+  // si l'année choisie n'existe plus (ou premier chargement), retombe sur la plus récente dispo
+  if(previousValue !== 'all' && !yearsAvailable.includes(parseInt(previousValue))){
+    statsYearFilter = yearsAvailable.length ? String(yearsAvailable[yearsAvailable.length-1]) : 'all';
+  }
+  yearSelect.value = statsYearFilter;
+
+  const rows = statsYearFilter === 'all' ? allRows : allRows.filter(r => String(r.year) === String(statsYearFilter));
 
   const monthlyEl = document.getElementById('monthly-recap-list');
   monthlyEl.innerHTML = rows.length === 0
@@ -1729,11 +1747,11 @@ function renderMonthlyRecap(){
         </div>
       `).join('');
 
-  // récap annuel : somme des mois par année
+  // récap annuel : somme des mois par année, dans l'ordre chronologique (toutes années confondues)
   const byYear = {};
-  rows.forEach(r => { byYear[r.year] = (byYear[r.year]||0) + r.words; });
+  allRows.forEach(r => { byYear[r.year] = (byYear[r.year]||0) + r.words; });
   const yearlyEl = document.getElementById('yearly-recap-list');
-  const years = Object.keys(byYear).sort().reverse();
+  const years = Object.keys(byYear).sort();
   yearlyEl.innerHTML = years.length === 0
     ? '<p class="empty-state" style="padding:6px 0;">Aucune donnée pour le moment.</p>'
     : years.map(y => `
@@ -1743,8 +1761,8 @@ function renderMonthlyRecap(){
         </div>
       `).join('');
 
-  // total général
-  const grandTotal = rows.reduce((a,r) => a + r.words, 0);
+  // total général (toutes années confondues, indépendant du filtre)
+  const grandTotal = allRows.reduce((a,r) => a + r.words, 0);
   document.getElementById('stat-grand-total').textContent = grandTotal.toLocaleString('fr-FR') + ' mots';
 }
 
@@ -1772,6 +1790,8 @@ async function addOrEditMonthTotal(year, month){
     if(existing){ existing.words_total = words; }
     else{ monthlyTotals.push(data); }
     renderMonthlyRecap();
+  } else {
+    alert("Erreur lors de l'enregistrement : " + error.message);
   }
 }
 
