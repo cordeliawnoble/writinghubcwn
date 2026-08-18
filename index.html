@@ -1179,9 +1179,13 @@ async function deleteChapter(id){
 }
 
 async function updateChapterWordCount(id, value){
-  const newWc = Math.max(0, parseInt(value) || 0);
   const c = chapters.find(c => c.id === id);
   if(!c) return;
+  if(value === '' || value === null || isNaN(parseInt(value))){
+    renderDashboard(); renderProjectsList(); // annule visuellement, ne touche pas à la donnée enregistrée
+    return;
+  }
+  const newWc = Math.max(0, parseInt(value));
   const oldWc = c.word_count || 0;
   await sb.from('chapters').update({ word_count: newWc, updated_at: new Date().toISOString() }).eq('id', id);
   await logWritingProgress(id, oldWc, newWc);
@@ -1194,7 +1198,11 @@ async function updateChapterWordCount(id, value){
 }
 
 async function updateChapterGoal(id, value){
-  const newGoal = Math.max(0, parseInt(value) || 0);
+  if(value === '' || value === null || isNaN(parseInt(value))){
+    renderDashboard(); renderProjectsList();
+    return;
+  }
+  const newGoal = Math.max(0, parseInt(value));
   await sb.from('chapters').update({ word_goal: newGoal }).eq('id', id);
   const c = chapters.find(c => c.id === id);
   if(c) c.word_goal = newGoal;
