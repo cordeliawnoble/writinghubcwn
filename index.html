@@ -468,7 +468,6 @@
       <p class="subtitle">Ta régularité, semaine après semaine.</p>
       <div class="card" style="margin-bottom:20px;">
         <h3>Assiduité (12 dernières semaines)</h3>
-        <p class="heatmap-summary" id="heatmap-summary"></p>
         <div class="heatmap-wrapper">
           <div class="heatmap-dow-labels"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span></div>
           <div class="heatmap-cols">
@@ -1681,9 +1680,6 @@ function renderStats(){
     lastMonth = m;
     return `<span>${label}</span>`;
   }).join('');
-
-  document.getElementById('heatmap-summary').innerHTML =
-    `<strong>${activeDaysCount}</strong> jour${activeDaysCount>1?'s':''} d'écriture sur les 84 derniers — <strong>${totalInRange.toLocaleString('fr-FR')}</strong> mots au total`;
 
   const now = new Date();
   const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate()-7);
