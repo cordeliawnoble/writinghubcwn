@@ -251,6 +251,11 @@
   .recap-row .recap-words{ color:var(--navy); font-family:'Cormorant Garamond',serif; font-weight:600; font-size:16px;}
   .recap-row button{ background:none; border:none; color:var(--ink-soft); font-size:12px; margin-left:10px; text-decoration:underline; cursor:pointer;}
   .recap-row.manual .recap-words::after{ content:' *'; color:var(--navy-mist); }
+  .log-row{ display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:14px;}
+  .log-row:last-child{ border-bottom:none; }
+  .log-row .log-words{ color:var(--navy); font-family:'Cormorant Garamond',serif; font-weight:600;}
+  .log-row button{ background:none; border:none; color:var(--ink-soft); font-size:12px; margin-left:10px; text-decoration:underline; cursor:pointer;}
+  .log-row button:hover{ color:var(--navy); }
   .add-row{ display:flex; gap:8px; margin-top:12px; }
   .add-row input{ flex:1; padding:9px 12px; border-radius:8px; border:1px solid var(--line); font-family:'Lora',serif; background:var(--panel); color:var(--ink);}
   .add-row button{ padding:9px 16px; border-radius:30px; border:1.5px solid var(--navy); background:transparent; color:var(--navy); font-size:14px;}
@@ -484,6 +489,18 @@
           <span>Plus</span>
         </div>
       </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h3>Journal d'écriture (corriger un jour)</h3>
+        <p class="subtitle" style="margin:0 0 14px;">Si un chiffre est faux quelque part, corrige-le directement ici, jour par jour.</p>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+          <input type="month" id="writing-log-month" style="padding:7px 10px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--ink);" onchange="renderWritingLog()">
+          <button class="btn-ghost" onclick="setDayTotalPrompt()">+ Corriger un jour</button>
+          <button class="btn-ghost" onclick="clearMonthLog()">Vider ce mois</button>
+        </div>
+        <div id="writing-log-list"></div>
+      </div>
+
       <div class="grid" style="grid-template-columns:repeat(3,1fr);">
         <div class="card"><h3>Mots — 7 jours</h3><div class="stat-num" id="stat-week" style="font-size:28px;color:var(--navy);">0</div></div>
         <div class="card"><h3>Mots — ce mois-ci</h3><div class="stat-num" id="stat-month" style="font-size:28px;color:var(--navy);">0</div></div>
@@ -1186,7 +1203,12 @@ async function updateChapterWordCount(id, value){
   }
   const newWc = Math.max(0, parseInt(value));
   const oldWc = c.word_count || 0;
-  await sb.from('chapters').update({ word_count: newWc, updated_at: new Date().toISOString() }).eq('id', id);
+  const { error } = await sb.from('chapters').update({ word_count: newWc, updated_at: new Date().toISOString() }).eq('id', id);
+  if(error){
+    alert("⚠️ Échec de l'enregistrement (connexion ?). Le chiffre affiché n'a PAS été sauvegardé, réessaie dans un instant.\n\n" + error.message);
+    renderDashboard(); renderProjectsList(); // réaffiche l'ancienne valeur réelle
+    return;
+  }
   await logWritingProgress(id, oldWc, newWc);
   c.word_count = newWc;
   const p = Math.min(100, Math.round((newWc / (c.word_goal||1)) * 100));
@@ -1202,7 +1224,12 @@ async function updateChapterGoal(id, value){
     return;
   }
   const newGoal = Math.max(0, parseInt(value));
-  await sb.from('chapters').update({ word_goal: newGoal }).eq('id', id);
+  const { error } = await sb.from('chapters').update({ word_goal: newGoal }).eq('id', id);
+  if(error){
+    alert("⚠️ Échec de l'enregistrement (connexion ?). Réessaie dans un instant.\n\n" + error.message);
+    renderDashboard(); renderProjectsList();
+    return;
+  }
   const c = chapters.find(c => c.id === id);
   if(c) c.word_goal = newGoal;
   renderDashboard();
@@ -1698,6 +1725,7 @@ function renderStats(){
   document.getElementById('stat-streak').textContent = streak + ' j';
 
   renderMonthlyRecap();
+  renderWritingLog();
 }
 
 /* ---------- RÉCAP MENSUEL / ANNUEL ---------- */
@@ -1768,6 +1796,91 @@ function renderMonthlyRecap(){
   // total général (toutes années confondues, indépendant du filtre)
   const grandTotal = allRows.reduce((a,r) => a + r.words, 0);
   document.getElementById('stat-grand-total').textContent = grandTotal.toLocaleString('fr-FR') + ' mots';
+}
+
+/* ---------- JOURNAL D'ÉCRITURE (correction manuelle jour par jour) ---------- */
+function currentLogMonthValue(){
+  const input = document.getElementById('writing-log-month');
+  if(input.value) return input.value; // 'YYYY-MM'
+  const now = new Date();
+  const val = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  input.value = val;
+  return val;
+}
+
+function renderWritingLog(){
+  const monthValue = currentLogMonthValue(); // 'YYYY-MM'
+  const byDate = {};
+  sessions.forEach(s => {
+    if(s.date.slice(0,7) === monthValue){
+      byDate[s.date] = (byDate[s.date] || 0) + s.words_written;
+    }
+  });
+  const dates = Object.keys(byDate).sort();
+  const el = document.getElementById('writing-log-list');
+  el.innerHTML = dates.length === 0
+    ? '<p class="empty-state" style="padding:6px 0;">Aucune entrée pour ce mois.</p>'
+    : dates.map(d => {
+        const label = new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
+        return `
+        <div class="log-row">
+          <span>${label}</span>
+          <span>
+            <span class="log-words">${byDate[d].toLocaleString('fr-FR')} mots</span>
+            <button onclick="setDayTotalPrompt('${d}')">corriger</button>
+            <button onclick="deleteDayLog('${d}')">supprimer</button>
+          </span>
+        </div>`;
+      }).join('');
+}
+
+async function setDayTotalPrompt(prefilledDate){
+  const dateInput = prompt("Date à corriger (AAAA-MM-JJ) :", prefilledDate || todayStr());
+  if(!dateInput) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dateInput)){ alert("Format de date invalide, utilise AAAA-MM-JJ."); return; }
+  const current = sessions.filter(s => s.date === dateInput).reduce((a,s) => a + s.words_written, 0);
+  const wordsInput = prompt(`Total de mots écrits le ${dateInput} :`, current);
+  if(wordsInput === null) return;
+  const words = Math.max(0, parseInt(wordsInput) || 0);
+
+  // supprime toutes les entrées existantes ce jour-là (peu importe le chapitre), puis pose UNE valeur propre
+  await sb.from('writing_sessions').delete().eq('user_id', currentUser.id).eq('date', dateInput);
+  const { data, error } = await sb.from('writing_sessions')
+    .insert({ user_id: currentUser.id, date: dateInput, chapter_id: null, words_written: words })
+    .select().single();
+
+  sessions = sessions.filter(s => s.date !== dateInput);
+  if(!error && data){ sessions.push(data); }
+
+  renderWritingLog();
+  renderStats();
+  renderDashboard();
+  renderProjectsList();
+}
+
+async function deleteDayLog(dateStr){
+  if(!confirm(`Supprimer toutes les entrées du ${dateStr} ?`)) return;
+  await sb.from('writing_sessions').delete().eq('user_id', currentUser.id).eq('date', dateStr);
+  sessions = sessions.filter(s => s.date !== dateStr);
+  renderWritingLog();
+  renderStats();
+  renderDashboard();
+  renderProjectsList();
+}
+
+async function clearMonthLog(){
+  const monthValue = currentLogMonthValue();
+  if(!confirm(`Vider TOUTES les entrées de ${monthValue} ? Cette action est irréversible.`)) return;
+  const [y, m] = monthValue.split('-');
+  const start = `${y}-${m}-01`;
+  const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+  const end = `${y}-${m}-${String(lastDay).padStart(2,'0')}`;
+  await sb.from('writing_sessions').delete().eq('user_id', currentUser.id).gte('date', start).lte('date', end);
+  sessions = sessions.filter(s => s.date.slice(0,7) !== monthValue);
+  renderWritingLog();
+  renderStats();
+  renderDashboard();
+  renderProjectsList();
 }
 
 async function addOrEditMonthTotal(year, month){
