@@ -1286,6 +1286,14 @@ function estimateFinishText(project, projectChapters){
   return finishDate.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
 }
 
+// Dernière échéance connue dans les tâches Notion de ce projet (planning prévu, indépendant du rythme réel)
+function plannedDeadlineText(project){
+  const projectTodos = todos.filter(t => t.project_id === project.id && t.due_date);
+  if(projectTodos.length === 0) return 'Non renseignée';
+  const latest = projectTodos.reduce((max, t) => t.due_date > max ? t.due_date : max, projectTodos[0].due_date);
+  return new Date(latest + 'T00:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+}
+
 function renderKpiWidgetCompact(project){
   const projectChapters = chapters.filter(c => c.project_id === project.id);
   const mots = projectChapters.reduce((a,c) => a + (c.word_count||0), 0);
@@ -1294,6 +1302,7 @@ function renderKpiWidgetCompact(project){
   const chap = projectChapters.filter(c => c.status === 'done').length;
   const pourcent = total > 0 ? Math.min(100, Math.round((mots/total)*100)) : 0;
   const estimation = estimateFinishText(project, projectChapters);
+  const planned = plannedDeadlineText(project);
   const col1 = project.kpi_color1 || '#c9a0f5';
   const col2 = project.kpi_color2 || '#d4af37';
 
@@ -1304,7 +1313,8 @@ function renderKpiWidgetCompact(project){
     <p class="kpi-compact-pct">${mots.toLocaleString('fr-FR')} / ${total.toLocaleString('fr-FR')} mots — ${pourcent}%</p>
     <div class="kpi-compact-stats">
       <div class="kpi-compact-stat"><span class="val">${chap}/${chaptotal}</span><span class="lbl">Chapitres</span></div>
-      <div class="kpi-compact-stat"><span class="val" style="font-size:13px;">${estimation}</span><span class="lbl">Fin estimée</span></div>
+      <div class="kpi-compact-stat"><span class="val" style="font-size:11px;">${estimation}</span><span class="lbl">Rythme réel</span></div>
+      <div class="kpi-compact-stat"><span class="val" style="font-size:11px;">${planned}</span><span class="lbl">Prévu (Notion)</span></div>
     </div>
   </div>`;
 }
@@ -1321,6 +1331,7 @@ function renderKpiWidget(project){
   const col1 = project.kpi_color1 || '#c9a0f5';
   const col2 = project.kpi_color2 || '#d4af37';
   const estimation = estimateFinishText(project, projectChapters);
+  const planned = plannedDeadlineText(project);
   const grad = `background:linear-gradient(135deg, ${col1}, ${col2}); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;`;
 
   return `
@@ -1364,8 +1375,10 @@ function renderKpiWidget(project){
           <div class="ornament">❧ ═══ ⚙ ═══ ☙</div>
         </div>
         <div class="card-middle">
-          <div class="text-sub">Fin estimée :</div>
-          <div class="text-medium" style="font-size:14px;">${estimation}</div>
+          <div class="text-sub">Rythme réel :</div>
+          <div class="text-medium" style="font-size:13px;">${estimation}</div>
+          <div class="text-sub" style="margin-top:8px;">Échéance prévue :</div>
+          <div class="text-medium" style="font-size:13px;">${planned}</div>
         </div>
         <div class="card-footer">
           <div class="ornament">✦ ═ ✦</div>
@@ -1383,9 +1396,14 @@ let expandedProjects = {}; // id -> bool
 // Extrait le dernier nombre trouvé dans un titre pour trier par ordre de chapitre,
 // même si Notion (ou l'ordre d'import) renvoie les éléments dans le désordre.
 function extractChapterNumber(title){
-  const matches = (title || '').match(/\d+/g);
+  const t = title || '';
+  // priorité : le nombre juste après le mot "Chapitre" (ex: "Chapitre 16 — ...")
+  const afterChapitre = t.match(/chapitre\s*(\d+)/i);
+  if(afterChapitre) return parseInt(afterChapitre[1], 10);
+  // sinon, premier nombre trouvé dans le titre (plus fiable que le dernier)
+  const matches = t.match(/\d+/g);
   if(!matches || matches.length === 0) return Infinity;
-  return parseInt(matches[matches.length - 1], 10);
+  return parseInt(matches[0], 10);
 }
 
 function renderProjectsList(){
